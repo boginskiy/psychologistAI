@@ -26,7 +26,7 @@ func NewApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	return nil
+	return a.Server.Run(ctx)
 }
 
 func (a *App) initModules(ctx context.Context) error {
@@ -56,6 +56,6 @@ func (a *App) initLogger(ctx context.Context) error {
 }
 
 func (a *App) initServer(ctx context.Context) error {
-	// NEED create
+	a.Server = server.NewServerHTTP(ctx, server.ConfigServer)
 	return nil
 }
