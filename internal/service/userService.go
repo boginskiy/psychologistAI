@@ -7,17 +7,17 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/models"
 )
 
-type UserService struct {
+type UserServ struct {
 	Validater Validater
 }
 
-func NewUserService(validater Validater) *UserService {
-	return &UserService{
+func NewUserServ(ctx context.Context, validater Validater) *UserServ {
+	return &UserServ{
 		Validater: validater,
 	}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, userReq *dto.CreateUserRequest) (*dto.UserResponse, error) {
+func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserRequest) (*dto.UserResponse, error) {
 	// Валидация Email
 	err := s.Validater.CheckNotEmptyStrField("email", userReq.Email)
 	if err != nil {
@@ -30,10 +30,22 @@ func (s *UserService) CreateUser(ctx context.Context, userReq *dto.CreateUserReq
 		return nil, err
 	}
 
-	// Domain user
-	newUser := models.NewUser(userReq)
+	// Create domain user
+	newUser, err := models.NewUser(userReq)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	// TODO Сохранить в БД // Контейнер
+	// Выдать токен //
+	// Отправить ответ
+
+	return &dto.UserResponse{
+		Email:     newUser.Email,
+		FirstName: newUser.FirstName,
+		LastName:  newUser.LastName,
+		CreatedAt: newUser.CreatedAt,
+	}, nil
 }
 
 // type User struct {
@@ -67,4 +79,10 @@ func (s *UserService) CreateUser(ctx context.Context, userReq *dto.CreateUserReq
 // 	FirstName string    `json:"first_name,omitempty" db:"first_name"`
 // 	LastName  string    `json:"last_name,omitempty" db:"last_name"`
 // 	Phone     string    `json:"phone,omitempty" db:"phone"`
+// }
+
+// // 3. При отображении конвертируем в локальное время пользователя
+// func (u *User) GetCreatedAtForUser(timezone string) string {
+// 	loc, _ := time.LoadLocation(timezone)
+// 	return u.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
 // }

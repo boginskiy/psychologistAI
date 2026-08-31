@@ -11,6 +11,10 @@ import (
 type Resp struct {
 }
 
+func NewResp() *Resp {
+	return &Resp{}
+}
+
 func (r *Resp) SendError(w http.ResponseWriter, err error, status int) {
 	apiErr := errors.NewAPIError(err, status)
 

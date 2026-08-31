@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/google/uuid"
 )
 
@@ -26,16 +27,25 @@ type User struct {
 	// Временные метки
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
-	LastLoginAt    *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty" db:"last_activity_at"`
-	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // Soft delete
+	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // soft delete
 }
 
-func NewUser(userReq *dto.CreateUserRequest) *User {
-	return &User{
-		ID:       uuid.Must(uuid.NewV7()),
-		Email:    userReq.Email,
-		Password: userReq.Password,
+func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
+	hashPassword, err := hashpass.CreateHashPass(userReq.Password)
+	if err != nil {
+		return nil, err
 	}
+
+	return &User{
+		ID:        uuid.Must(uuid.NewV7()),
+		Email:     userReq.Email,
+		Password:  hashPassword,
+		FirstName: userReq.FirstName,
+		LastName:  userReq.LastName,
+		Role:      "user",
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}, nil
 
 }

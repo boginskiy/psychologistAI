@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 )
 
@@ -12,14 +13,17 @@ type ServerHTTP struct {
 	Server *http.Server
 }
 
-func NewServerHTTP(ctx context.Context, cfg Config) *ServerHTTP {
+func NewServerHTTP(appCtx context.Context, cfg Config) *ServerHTTP {
 	return &ServerHTTP{
 		Cfg: cfg,
 		Server: &http.Server{
-			Addr:         cfg.Port,         // Порт.
+			Addr:         cfg.Port,         // Порт
 			ReadTimeout:  cfg.ReadTimeout,  // Если клиент медленно отправляет данные, соединение будет закрыто.
 			WriteTimeout: cfg.WriteTimeout, // Ограничивает время время выполнения обработчика + отправку данных клиенту.
 			IdleTimeout:  cfg.IdleTimeout,  // Время, в течение которого соединение может оставаться открытым без новых запросов (Keep-Alive)
+			BaseContext: func(listener net.Listener) context.Context {
+				return appCtx // Контекст приложения будет в каждом запросе
+			},
 
 			// Extra settings:
 			// ReadHeaderTimeout: 2 * time.Second, // Ограничивает время на чтение HTTP-заголовков. Полезно для защиты от медленных атак (Slowloris)

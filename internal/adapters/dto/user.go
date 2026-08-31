@@ -23,8 +23,8 @@ type UpdateUserRequest struct {
 
 // UserResponse - DTO для ответа после создания пользователя
 type UserResponse struct {
-	Email          string    `json:"email"`
-	FirstName      string    `json:"first_name,omitempty"`
-	LastName       string    `json:"last_name,omitempty"`
-	LastActivityAt time.Time `json:"last_activity_at,omitempty"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name,omitempty"`
+	LastName  string    `json:"last_name,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }

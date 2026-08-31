@@ -12,17 +12,28 @@ import (
 type UserHandler struct {
 	UserService service.UserService
 	Response    api.Response
+	basepath    string
+}
+
+func NewUserHandler(bpath string, userServ service.UserService, resp api.Response) *UserHandler {
+	return &UserHandler{
+		UserService: userServ,
+		Response:    resp,
+		basepath:    bpath,
+	}
 }
 
 func (h *UserHandler) Registration(r chi.Router) {
-	r.Get("/", listUsers)           // GET /api/v1/user
-	r.Post("/register", h.Register) // POST /api/v1/user/register
-
-	r.Route("/{userID}", func(r chi.Router) {
-		r.Get("/", getUser)    // GET /api/v1/user/{userID}
-		r.Put("/", updateUser) // PUT /api/v1/user/{userID}
-
+	r.Route(h.basepath, func(r chi.Router) {
+		r.Post("/register", h.Register) // POST /api/v1/user/register
 	})
+
+	// r.Get("/", listUsers)           // GET /api/v1/user
+	// r.Route("/{userID}", func(r chi.Router) {
+	// 	r.Get("/", getUser)    // GET /api/v1/user/{userID}
+	// 	r.Put("/", updateUser) // PUT /api/v1/user/{userID}
+
+	// })
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +52,10 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	// Response
 	h.Response.SendResponse(w, userRes, http.StatusOK)
 }
+
+// // Регистрируем маршруты.
+// r.Route("/users", userHandler.Registration)
+// r.Route("/home", homeHandler.Registration)
 
 // TODO
 //

@@ -4,8 +4,12 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
+	"github.com/boginskiy/psychologistAI/internal/api/handlers"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
+	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
+	"github.com/boginskiy/psychologistAI/internal/service"
 )
 
 type App struct {
@@ -13,6 +17,7 @@ type App struct {
 	Logg logger.Logger
 
 	Server server.Server
+	Router router.Router
 }
 
 func NewApp(ctx context.Context) (*App, error) {
@@ -26,13 +31,14 @@ func NewApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
-	return a.Server.Run(ctx)
+	return a.Server.Run(ctx, a.Router.Run())
 }
 
 func (a *App) initModules(ctx context.Context) error {
 	inits := []func(ctx context.Context) error{
 		a.initConfig,
 		a.initLogger,
+		a.initRouter,
 		a.initServer,
 	}
 
@@ -42,6 +48,25 @@ func (a *App) initModules(ctx context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *App) initRouter(ctx context.Context) error {
+	router := router.NewRouterChi(ctx, "/api/v1")
+
+	// Infra services
+	validater := service.NewValidService(ctx)
+	response := response.NewResp()
+
+	// Services
+	userService := service.NewUserServ(ctx, validater)
+
+	// Handlers
+	userHandler := handlers.NewUserHandler("/user", userService, response)
+
+	router.RegisterRoutes(userHandler)
+
+	a.Router = router
 	return nil
 }
 
