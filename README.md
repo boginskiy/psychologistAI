@@ -98,3 +98,8 @@ your-ai-agent/
 - предусмотреть разные режимы, например режим "психолог", "друг", "подруга"
 - в каком виде будет отрисовываться интерфейс клиенту
 - 
+
+
+
+сайт для примера:
+https://support.maxmind.com/knowledge-base/articles/create-a-maxmind-account

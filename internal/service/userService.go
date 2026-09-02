@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/boginskiy/psychologistAI/internal/adapters"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/models"
 )
@@ -37,15 +38,10 @@ func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserReques
 	}
 
 	// TODO Сохранить в БД // Контейнер
-	// Выдать токен //
+	// Выдать токен // теория, куки и т.п.
 	// Отправить ответ
 
-	return &dto.UserResponse{
-		Email:     newUser.Email,
-		FirstName: newUser.FirstName,
-		LastName:  newUser.LastName,
-		CreatedAt: newUser.CreatedAt,
-	}, nil
+	return adapters.ToUserResponse(newUser), nil
 }
 
 // type User struct {

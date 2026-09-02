@@ -53,6 +53,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	h.Response.SendResponse(w, userRes, http.StatusOK)
 }
 
+// В контекст можно положить местную дату и время пользователя
+//
+
 // // Регистрируем маршруты.
 // r.Route("/users", userHandler.Registration)
 // r.Route("/home", homeHandler.Registration)

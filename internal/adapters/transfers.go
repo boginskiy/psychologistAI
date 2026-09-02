@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/internal/models"
 )
 
 func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
@@ -23,4 +24,17 @@ func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
 	}
 
 	return &user, nil
+}
+
+// TODO
+// Добить Тайм зону, выводить верную дату с учетом этой зоны.
+// в мидлваре передавать тайм зону в ключах контекста
+
+func ToUserResponse(user *models.User) *dto.UserResponse {
+	return &dto.UserResponse{
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		CreatedAt: user.CreatedAt,
+	}
 }

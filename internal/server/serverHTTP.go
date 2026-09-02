@@ -41,6 +41,7 @@ func (s *ServerHTTP) Run(ctx context.Context, handler http.Handler) error {
 	errCh := make(chan error, 1)
 	go func() {
 		// s.logger.Debug().Msg("Server started")
+		fmt.Println("Server good started")
 		errCh <- s.Server.ListenAndServe()
 		close(errCh)
 	}()

@@ -38,6 +38,7 @@ func (a *App) initModules(ctx context.Context) error {
 	inits := []func(ctx context.Context) error{
 		a.initConfig,
 		a.initLogger,
+		a.initHandlers,
 		a.initRouter,
 		a.initServer,
 	}
@@ -51,9 +52,7 @@ func (a *App) initModules(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) initRouter(ctx context.Context) error {
-	router := router.NewRouterChi(ctx, "/api/v1")
-
+func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
 	validater := service.NewValidService(ctx)
 	response := response.NewResp()
@@ -64,9 +63,13 @@ func (a *App) initRouter(ctx context.Context) error {
 	// Handlers
 	userHandler := handlers.NewUserHandler("/user", userService, response)
 
-	router.RegisterRoutes(userHandler)
+	// Router
+	a.Router.RegisterRoutes(userHandler)
+	return nil
+}
 
-	a.Router = router
+func (a *App) initRouter(ctx context.Context) error {
+	a.Router = router.NewRouterChi(ctx, "/api/v1")
 	return nil
 }
 
