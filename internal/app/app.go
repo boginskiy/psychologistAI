@@ -36,10 +36,11 @@ func (a *App) Run(ctx context.Context) error {
 
 func (a *App) initModules(ctx context.Context) error {
 	inits := []func(ctx context.Context) error{
+		// Последовательность inits имеет значение.
 		a.initConfig,
 		a.initLogger,
-		a.initHandlers,
 		a.initRouter,
+		a.initHandlers,
 		a.initServer,
 	}
 

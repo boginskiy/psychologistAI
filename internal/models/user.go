@@ -13,7 +13,6 @@ type User struct {
 	ID       uuid.UUID `json:"id" db:"id"`
 	Email    string    `json:"email" db:"email" validate:"required,email"`
 	Password string    `json:"-" db:"password_hash"` // Храним хеш, не выводим
-	TimeZone string    `json:"-" db:"time_zone"`
 
 	// Личная информация
 	FirstName string `json:"first_name,omitempty" db:"first_name"`

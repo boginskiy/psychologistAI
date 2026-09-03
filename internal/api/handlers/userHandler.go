@@ -37,7 +37,7 @@ func (h *UserHandler) Registration(r chi.Router) {
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	// Adapter
+	// Adapters
 	userReq, err := adapters.ToCreateUserRequest(r)
 	if err != nil {
 		h.Response.SendError(w, err, http.StatusBadRequest)
@@ -48,13 +48,20 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	userRes, err := h.UserService.CreateUser(r.Context(), userReq)
 
 	// Errors
+	if err != nil {
+		h.Response.SendError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	// Обработка ошибок, отдельная история
+	// Пока все BadRequest
+
+	// Current Time
+	userRes.CreatedAt = adapters.ToCurrentTime(r, userRes.CreatedAt)
 
 	// Response
 	h.Response.SendResponse(w, userRes, http.StatusOK)
 }
-
-// В контекст можно положить местную дату и время пользователя
-//
 
 // // Регистрируем маршруты.
 // r.Route("/users", userHandler.Registration)

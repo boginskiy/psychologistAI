@@ -2,19 +2,23 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/models"
+	"github.com/boginskiy/psychologistAI/internal/repository"
 )
 
 type UserServ struct {
 	Validater Validater
+	UserRepo  repository.UserRepo
 }
 
-func NewUserServ(ctx context.Context, validater Validater) *UserServ {
+func NewUserServ(ctx context.Context, validater Validater, userRepo repository.UserRepo) *UserServ {
 	return &UserServ{
 		Validater: validater,
+		UserRepo:  userRepo,
 	}
 }
 
@@ -37,48 +41,16 @@ func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserReques
 		return nil, err
 	}
 
+	if !s.UserRepo.CheckUnic(newUser) {
+		return nil, fmt.Errorf("user's email is not unique, try again")
+	}
+
+	// Не нужно проверки, быстрее будет сохранить пользователя
+	// Можем сразу сохранять! И если ошибка уникальности по полю, то выдаем соответствующую ошибку.
+
 	// TODO Сохранить в БД // Контейнер
 	// Выдать токен // теория, куки и т.п.
 	// Отправить ответ
 
 	return adapters.ToUserResponse(newUser), nil
 }
-
-// type User struct {
-// 	// Основные поля
-// 	ID       uuid.UUID `json:"id" db:"id"`
-// 	Email    string    `json:"email" db:"email" validate:"required,email"`
-// 	Password string    `json:"-" db:"password_hash"` // Храним хеш, не выводим
-
-// 	// Личная информация
-// 	FirstName string `json:"first_name,omitempty" db:"first_name"`
-// 	LastName  string `json:"last_name,omitempty" db:"last_name"`
-// 	Phone     string `json:"phone,omitempty" db:"phone"`
-
-// 	// Статусы
-// 	IsActive bool   `json:"is_active" db:"is_active"`
-// 	IsAdmin  bool   `json:"is_admin" db:"is_admin"`
-// 	Role     string `json:"role" db:"role"` // user, admin, moderator
-
-// 	// Временные метки
-// 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
-// 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
-// 	LastLoginAt    *time.Time `json:"last_login_at,omitempty" db:"last_login_at"`
-// 	LastActivityAt *time.Time `json:"last_activity_at,omitempty" db:"last_activity_at"`
-// 	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // Soft delete
-// }
-
-// type CreateUserRequest struct {
-// 	ID        uuid.UUID `json:"id" db:"id"`
-// 	Email     string    `json:"email" db:"email" validate:"required,email"`
-// 	Password  string    `json:"-" db:"password_hash"`
-// 	FirstName string    `json:"first_name,omitempty" db:"first_name"`
-// 	LastName  string    `json:"last_name,omitempty" db:"last_name"`
-// 	Phone     string    `json:"phone,omitempty" db:"phone"`
-// }
-
-// // 3. При отображении конвертируем в локальное время пользователя
-// func (u *User) GetCreatedAtForUser(timezone string) string {
-// 	loc, _ := time.LoadLocation(timezone)
-// 	return u.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
-// }

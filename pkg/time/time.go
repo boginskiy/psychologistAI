@@ -1,6 +1,8 @@
 package time
 
-import "time"
+import (
+	"time"
+)
 
 // Конвертация время UTC -> Local Time
 func ConvertTimeUtcToLocal(tm time.Time, timezone string) string {
@@ -9,3 +11,12 @@ func ConvertTimeUtcToLocal(tm time.Time, timezone string) string {
 	loc, _ := time.LoadLocation(timezone)
 	return tm.In(loc).Format(time.RFC3339)
 }
+
+// Берем таймзону с request
+// func TakeTimeFromRequest(r *http.Request) (time.Time, error) {
+// 	tz := r.Header.Get("Accept-Timezone")
+// 	if tz == "" {
+// 		return time.Time{}, fmt.Errorf("time zone is not defined")
+// 	}
+// 	return tz, nil
+// }
