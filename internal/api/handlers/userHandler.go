@@ -5,20 +5,22 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
+	"github.com/boginskiy/psychologistAI/pkg/timeproc"
 	"github.com/go-chi/chi"
 )
 
 type UserHandler struct {
 	UserService service.UserService
-	Response    api.Response
+	Sender      api.Sender
 	basepath    string
 }
 
-func NewUserHandler(bpath string, userServ service.UserService, resp api.Response) *UserHandler {
+func NewUserHandler(bpath string, userServ service.UserService, sender api.Sender) *UserHandler {
 	return &UserHandler{
 		UserService: userServ,
-		Response:    resp,
+		Sender:      sender,
 		basepath:    bpath,
 	}
 }
@@ -36,31 +38,85 @@ func (h *UserHandler) Registration(r chi.Router) {
 	// })
 }
 
+// func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+// 	state := "random-state-string" // обязательно для защиты от CSRF
+// 	http.Redirect(w, r, oauth2Config.AuthCodeURL(state), http.StatusFound)
+// }
+
+// // Эндпоинт callback — обмен кода на токены и получение user info
+// func handleCallback(w http.ResponseWriter, r *http.Request) {
+// 	ctx := context.Background()
+
+// 	// Проверяем state (опущено для краткости)
+
+// 	// 1. Обмениваем code на токены
+// 	oauth2Token, err := oauth2Config.Exchange(ctx, r.URL.Query().Get("code"))
+// 	if err != nil {
+// 		http.Error(w, "Failed to exchange token", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// 2. Извлекаем ID Token (JWT) из ответа
+// 	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+// 	if !ok {
+// 		http.Error(w, "Missing ID Token", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// 3. Верифицируем ID Token
+// 	idToken, err := idTokenVerifier.Verify(ctx, rawIDToken)
+// 	if err != nil {
+// 		http.Error(w, "Failed to verify ID Token", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// 4. Извлекаем claims (информацию о пользователе)
+// 	var claims struct {
+// 		Email         string `json:"email"`
+// 		EmailVerified bool   `json:"email_verified"`
+// 		Name          string `json:"name"`
+// 		Picture       string `json:"picture"`
+// 		Sub           string `json:"sub"` // уникальный идентификатор пользователя
+// 	}
+// 	if err := idToken.Claims(&claims); err != nil {
+// 		http.Error(w, "Failed to parse claims", http.StatusInternalServerError)
+// 		return
+// 	}
+
+// 	// 5. Работаем с пользовательскими данными
+// 	log.Printf("User: %s (%s)", claims.Name, claims.Email)
+
+// 	// Здесь можно создать сессию, сохранить пользователя в БД и т.д.
+// 	w.Write([]byte("Hello, " + claims.Name))
+// }
+
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	userResponse := response.NewUserResponse()
+
 	// Adapters
-	userReq, err := adapters.ToCreateUserRequest(r)
+	userRequest, err := adapters.ToCreateUserRequest(r)
 	if err != nil {
-		h.Response.SendError(w, err, http.StatusBadRequest)
+		userResponse.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userResponse, http.StatusBadRequest)
 		return
 	}
 
 	// Service
-	userRes, err := h.UserService.CreateUser(r.Context(), userReq)
+	userTmp, err := h.UserService.CreateUser(r.Context(), userRequest)
 
 	// Errors
 	if err != nil {
-		h.Response.SendError(w, err, http.StatusBadRequest)
+		userResponse.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userResponse, http.StatusBadRequest)
 		return
 	}
 
-	// Обработка ошибок, отдельная история
-	// Пока все BadRequest
+	// Update Time
+	userTmp.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userTmp.CreatedAt, r)
 
-	// Current Time
-	userRes.CreatedAt = adapters.ToCurrentTime(r, userRes.CreatedAt)
-
-	// Response
-	h.Response.SendResponse(w, userRes, http.StatusOK)
+	userResponse = userTmp
+	userResponse.PrepareOKResponse(http.StatusOK)
+	h.Sender.SendResponse(w, userResponse, http.StatusOK)
 }
 
 // // Регистрируем маршруты.

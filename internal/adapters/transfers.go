@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/models"
 )
 
@@ -27,24 +27,10 @@ func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
 	return &user, nil
 }
 
-func ToUserResponse(user *models.User) *dto.UserResponse {
-	return &dto.UserResponse{
-		Email:     user.Email,
+func ToUserResponse(user *models.User) *response.UserResponse {
+	return &response.UserResponse{
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		CreatedAt: user.CreatedAt,
+		CreatedAt: &user.CreatedAt,
 	}
-}
-
-func ToCurrentTime(r *http.Request, tm time.Time) time.Time {
-	// Take Tz
-	tz := r.Header.Get("Accept-Timezone")
-	if tz == "" {
-		return tm
-	}
-	loc, err := time.LoadLocation(tz)
-	if err != nil {
-		return tm
-	}
-	return tm.In(loc)
 }

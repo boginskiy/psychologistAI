@@ -4,27 +4,18 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	"github.com/boginskiy/psychologistAI/internal/api/errors"
+	"github.com/boginskiy/psychologistAI/internal/api"
 )
 
-type Resp struct {
+type Response struct {
 }
 
-func NewResp() *Resp {
-	return &Resp{}
+func NewResponse() *Response {
+	return &Response{}
 }
 
-func (r *Resp) SendError(w http.ResponseWriter, err error, status int) {
-	apiErr := errors.NewAPIError(err, status)
-
+func (r *Response) SendResponse(w http.ResponseWriter, item api.ResponseWriter, status int) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(apiErr)
-}
-
-func (r *Resp) SendResponse(w http.ResponseWriter, userRes *dto.UserResponse, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(userRes)
+	w.WriteHeader(item.GetStatus())
+	json.NewEncoder(w).Encode(item)
 }

@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/models"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 )
@@ -22,7 +22,7 @@ func NewUserServ(ctx context.Context, validater Validater, userRepo repository.U
 	}
 }
 
-func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserRequest) (*dto.UserResponse, error) {
+func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserRequest) (*response.UserResponse, error) {
 	// Валидация Email
 	err := s.Validater.CheckNotEmptyStrField("email", userReq.Email)
 	if err != nil {
@@ -41,14 +41,16 @@ func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserReques
 		return nil, err
 	}
 
-	if !s.UserRepo.CheckUnic(newUser) {
-		return nil, fmt.Errorf("user's email is not unique, try again")
+	// Сохранили user в БД
+	err = s.UserRepo.SaveItem(newUser)
+	if err != nil {
+		return nil, err
 	}
 
-	// Не нужно проверки, быстрее будет сохранить пользователя
-	// Можем сразу сохранять! И если ошибка уникальности по полю, то выдаем соответствующую ошибку.
+	// Выдаем токен для последующей аутентификации
 
-	// TODO Сохранить в БД // Контейнер
+	// TODO
+	// БД // Контейнер
 	// Выдать токен // теория, куки и т.п.
 	// Отправить ответ
 

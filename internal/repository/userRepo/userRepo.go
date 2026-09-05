@@ -1,7 +1,10 @@
 package userrepo
 
 import (
+	"fmt"
+
 	"github.com/boginskiy/psychologistAI/internal/db"
+	"github.com/boginskiy/psychologistAI/internal/db/mapDB"
 	"github.com/boginskiy/psychologistAI/internal/models"
 )
 
@@ -9,12 +12,22 @@ type UserRepo struct {
 	DB db.DataBase
 }
 
-func (r *UserRepo) CheckUnic(user *models.User) bool {
+func NewUserRepo() *UserRepo {
+	return &UserRepo{
+		DB: mapDB.NewMapDB(),
+	}
+}
+
+func (r *UserRepo) SaveItem(user *models.User) error {
 	userTb := r.DB.GetUserTable()
 
 	_, ok := userTb[user.Email]
 	if ok {
-		return !ok
+		return fmt.Errorf("user's email is not unique, try again")
 	}
-	return ok
+
+	fmt.Printf("%+v", user)
+
+	userTb[user.Email] = user
+	return nil
 }

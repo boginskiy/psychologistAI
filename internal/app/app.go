@@ -7,6 +7,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
+	userrepo "github.com/boginskiy/psychologistAI/internal/repository/userRepo"
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -56,10 +57,13 @@ func (a *App) initModules(ctx context.Context) error {
 func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
 	validater := service.NewValidService(ctx)
-	response := response.NewResp()
+	response := response.NewResponse()
+
+	// Repo
+	userRepo := userrepo.NewUserRepo()
 
 	// Services
-	userService := service.NewUserServ(ctx, validater)
+	userService := service.NewUserServ(ctx, validater, userRepo)
 
 	// Handlers
 	userHandler := handlers.NewUserHandler("/user", userService, response)
