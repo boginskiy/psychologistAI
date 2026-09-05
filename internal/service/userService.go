@@ -47,12 +47,19 @@ func (s *UserServ) CreateUser(ctx context.Context, userReq *dto.CreateUserReques
 		return nil, err
 	}
 
-	// Выдаем токен для последующей аутентификации
-
-	// TODO
-	// БД // Контейнер
-	// Выдать токен // теория, куки и т.п.
-	// Отправить ответ
+	// Отправка email для верификации пользователя
+	// newUser.Email
+	// newUser.VerificationToken
 
 	return adapters.ToUserResponse(newUser), nil
 }
+
+// После верификации нужно почистить VerificationToken, TokenExpiresAt
+// Что делать с неверифицированными пользователями?
+// Пройтись еще раз по рекомендациям и выписать нужное
+// Далее разрабатываем подтверждение аккаунта
+
+// TODO
+// БД // Контейнер
+// Выдать токен // теория, куки и т.п.
+// Отправить ответ

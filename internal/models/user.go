@@ -4,9 +4,13 @@ import (
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/pkg/generators"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/google/uuid"
 )
+
+const TokenLength = 32
+const TokenLifetime = 15 * time.Minute
 
 type User struct {
 	// Основные поля
@@ -19,14 +23,19 @@ type User struct {
 	LastName  string `json:"last_name,omitempty" db:"last_name"`
 	Phone     string `json:"phone,omitempty" db:"phone"`
 
+	// Токен верификации учетной записи
+	VerificationToken string `json:"verification_token" db:"verification_token"`
+
 	// Статусы
-	IsActive bool   `json:"is_active" db:"is_active"`
-	IsAdmin  bool   `json:"is_admin" db:"is_admin"`
-	Role     string `json:"role" db:"role"` // user, admin, moderator
+	EmailVerified bool   `json:"email_verified" db:"email_verified"`
+	IsActive      bool   `json:"is_active" db:"is_active"`
+	IsAdmin       bool   `json:"is_admin" db:"is_admin"`
+	Role          string `json:"role" db:"role"` // user, admin, moderator
 
 	// Временные метки
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
+	TokenExpiresAt *time.Time `json:"token_expires_at" db:"token_expires_at"`
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty" db:"last_activity_at"`
 	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // soft delete
 }
@@ -37,15 +46,28 @@ func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
 		return nil, err
 	}
 
+	// Токен для верификации пользователя
+	verificToken, err := generators.GenerateToken(TokenLength)
+	if err != nil {
+		return nil, err
+	}
+
+	// Время жизни токена до N-time
+	tokenExpiresAt := time.Now().UTC().Add(TokenLifetime)
+
 	return &User{
 		ID:        uuid.Must(uuid.NewV7()),
 		Email:     userReq.Email,
 		Password:  hashPassword,
 		FirstName: userReq.FirstName,
 		LastName:  userReq.LastName,
+		Phone:     userReq.Phone,
 		Role:      "user",
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
-	}, nil
 
+		EmailVerified:     false,
+		VerificationToken: verificToken,
+		TokenExpiresAt:    &tokenExpiresAt,
+	}, nil
 }

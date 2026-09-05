@@ -91,32 +91,30 @@ func (h *UserHandler) Registration(r chi.Router) {
 // }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	userResponse := response.NewUserResponse()
+	userTmp := response.NewUserResponse()
 
 	// Adapters
 	userRequest, err := adapters.ToCreateUserRequest(r)
 	if err != nil {
-		userResponse.PrepareErrResponse(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, userResponse, http.StatusBadRequest)
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
 		return
 	}
 
 	// Service
-	userTmp, err := h.UserService.CreateUser(r.Context(), userRequest)
+	userResponse, err := h.UserService.CreateUser(r.Context(), userRequest)
 
 	// Errors
 	if err != nil {
-		userResponse.PrepareErrResponse(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, userResponse, http.StatusBadRequest)
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
 		return
 	}
 
 	// Update Time
-	userTmp.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userTmp.CreatedAt, r)
-
-	userResponse = userTmp
+	userResponse.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userResponse.CreatedAt, r)
 	userResponse.PrepareOKResponse(http.StatusOK)
-	h.Sender.SendResponse(w, userResponse, http.StatusOK)
+	h.Sender.SendResponse(w, userResponse)
 }
 
 // // Регистрируем маршруты.

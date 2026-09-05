@@ -19,5 +19,5 @@ type ResponseWriter interface {
 }
 
 type Sender interface {
-	SendResponse(w http.ResponseWriter, item ResponseWriter, status int)
+	SendResponse(w http.ResponseWriter, item ResponseWriter)
 }
