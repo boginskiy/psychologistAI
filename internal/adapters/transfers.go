@@ -36,7 +36,7 @@ func ToUserResponse(user *models.User) *response.UserResponse {
 	return &response.UserResponse{
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
-		CreatedAt: &user.CreatedAt,
+		CreatedAt: user.CreatedAt,
 	}
 }
 

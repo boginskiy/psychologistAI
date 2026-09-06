@@ -26,9 +26,14 @@ func NewUserHandler(bpath string, userServ service.UserService, sender api.Sende
 
 func (h *UserHandler) Registration(r chi.Router) {
 	r.Route(h.basepath, func(r chi.Router) {
-		r.Post("/register", h.Register)      // POST /api/v1/user/register
-		r.Get("/verify/{token}", h.Verifier) // GET /api/v1/user/verify/{token}
+		r.Post("/registration", h.Register)        // POST /api/v1/user/registration
+		r.Get("/verification/{token}", h.Verifier) // GET /api/v1/user/verification/{token}
+		r.Post("/login", h.Loginer)                // POST /api/v1/user/login
 	})
+}
+
+func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +49,35 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 
 	userResponse.PrepareOKResponse(http.StatusOK)
 	h.Sender.SendResponse(w, userResponse)
+}
+
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	userTmp := response.NewUserResponse()
+
+	// Adapters
+	userRequest, err := adapters.ToCreateUserRequest(r)
+	if err != nil {
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
+		return
+	}
+
+	// Service
+	userResponse, err := h.UserService.Create(r.Context(), userRequest)
+
+	// Errors
+	if err != nil {
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
+		return
+	}
+
+	// Update Time
+	// userResponse.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userResponse.CreatedAt, r)
+
+	userResponse.PrepareOKResponse(http.StatusOK)
+	h.Sender.SendResponse(w, userResponse)
+
 }
 
 // func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -97,46 +131,3 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 // 	// Здесь можно создать сессию, сохранить пользователя в БД и т.д.
 // 	w.Write([]byte("Hello, " + claims.Name))
 // }
-
-func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	userTmp := response.NewUserResponse()
-
-	// Adapters
-	userRequest, err := adapters.ToCreateUserRequest(r)
-	if err != nil {
-		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, userTmp)
-		return
-	}
-
-	// Service
-	userResponse, err := h.UserService.Create(r.Context(), userRequest)
-
-	// Errors
-	if err != nil {
-		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, userTmp)
-		return
-	}
-
-	// Update Time
-	// userResponse.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userResponse.CreatedAt, r)
-
-	userResponse.PrepareOKResponse(http.StatusOK)
-	h.Sender.SendResponse(w, userResponse)
-
-}
-
-// // Регистрируем маршруты.
-// r.Route("/users", userHandler.Registration)
-// r.Route("/home", homeHandler.Registration)
-
-// TODO
-//
-
-// ID       uuid.UUID  Генерируем v7 (упорядоченный)
-// r.Get("/", h.List)          // GET /api/v1/user
-//     r.Post("/", h.Create)       // POST /api/v1/user
-//     r.Get("/{id}", h.Get)       // GET /api/v1/user/{id}
-//     r.Put("/{id}", h.Update)    // PUT /api/v1/user/{id}
-//     r.Delete("/{id}", h.Delete) // DELETE /api/v1/user/{id}

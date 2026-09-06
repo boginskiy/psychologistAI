@@ -25,7 +25,7 @@ const (
 	Retry   = 3
 	TimeOut = 5000 * time.Millisecond
 	Delay   = 50 * time.Millisecond
-	Link    = "http://localhost:8080/api/v1/user/verify/"
+	Link    = "http://localhost:8080/api/v1/user/verification/"
 )
 
 type EmailServ struct {
