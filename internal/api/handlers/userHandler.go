@@ -7,7 +7,6 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
-	"github.com/boginskiy/psychologistAI/pkg/timeproc"
 	"github.com/go-chi/chi"
 )
 
@@ -27,15 +26,24 @@ func NewUserHandler(bpath string, userServ service.UserService, sender api.Sende
 
 func (h *UserHandler) Registration(r chi.Router) {
 	r.Route(h.basepath, func(r chi.Router) {
-		r.Post("/register", h.Register) // POST /api/v1/user/register
+		r.Post("/register", h.Register)      // POST /api/v1/user/register
+		r.Get("/verify/{token}", h.Verifier) // GET /api/v1/user/verify/{token}
 	})
+}
 
-	// r.Get("/", listUsers)           // GET /api/v1/user
-	// r.Route("/{userID}", func(r chi.Router) {
-	// 	r.Get("/", getUser)    // GET /api/v1/user/{userID}
-	// 	r.Put("/", updateUser) // PUT /api/v1/user/{userID}
+func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
+	userTmp := response.NewUserResponse()
+	token := adapters.ToToken(r)
 
-	// })
+	userResponse, err := h.UserService.Verification(r.Context(), token)
+	if err != nil {
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
+		return
+	}
+
+	userResponse.PrepareOKResponse(http.StatusOK)
+	h.Sender.SendResponse(w, userResponse)
 }
 
 // func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +110,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Service
-	userResponse, err := h.UserService.CreateUser(r.Context(), userRequest)
+	userResponse, err := h.UserService.Create(r.Context(), userRequest)
 
 	// Errors
 	if err != nil {
@@ -112,9 +120,11 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update Time
-	userResponse.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userResponse.CreatedAt, r)
+	// userResponse.CreatedAt = timeproc.ConvertTimeUtcToLocalByRequest(userResponse.CreatedAt, r)
+
 	userResponse.PrepareOKResponse(http.StatusOK)
 	h.Sender.SendResponse(w, userResponse)
+
 }
 
 // // Регистрируем маршруты.
@@ -130,12 +140,3 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 //     r.Get("/{id}", h.Get)       // GET /api/v1/user/{id}
 //     r.Put("/{id}", h.Update)    // PUT /api/v1/user/{id}
 //     r.Delete("/{id}", h.Delete) // DELETE /api/v1/user/{id}
-
-// Сущность:
-// UserRequest, UserResponse
-// UserDB, UserModel
-
-// TODO
-// Регистрация
-// Авторизация
-//

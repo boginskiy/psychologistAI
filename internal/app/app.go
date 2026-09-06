@@ -57,13 +57,14 @@ func (a *App) initModules(ctx context.Context) error {
 func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
 	validater := service.NewValidService(ctx)
+	notifier := service.NewEmailServ(ctx)
 	response := response.NewResponse()
 
 	// Repo
 	userRepo := userrepo.NewUserRepo()
 
 	// Services
-	userService := service.NewUserServ(ctx, validater, userRepo)
+	userService := service.NewUserServ(ctx, validater, notifier, userRepo)
 
 	// Handlers
 	userHandler := handlers.NewUserHandler("/user", userService, response)

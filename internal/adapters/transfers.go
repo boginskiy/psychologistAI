@@ -9,6 +9,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/models"
+	"github.com/go-chi/chi"
 )
 
 func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
@@ -27,10 +28,20 @@ func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
 	return &user, nil
 }
 
+func ToToken(r *http.Request) string {
+	return chi.URLParam(r, "token")
+}
+
 func ToUserResponse(user *models.User) *response.UserResponse {
 	return &response.UserResponse{
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		CreatedAt: &user.CreatedAt,
 	}
+}
+
+func ToUserResponseOnlyMess(msg string) *response.UserResponse {
+	tmp := &response.UserResponse{}
+	tmp.Message = msg
+	return tmp
 }
