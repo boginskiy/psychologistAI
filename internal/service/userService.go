@@ -10,9 +10,10 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/models"
 	"github.com/boginskiy/psychologistAI/internal/repository"
-	"github.com/boginskiy/psychologistAI/pkg/generators"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 )
+
+const AttemptsCnt = 5
 
 type UserServ struct {
 	Validater Validater
@@ -28,21 +29,13 @@ func NewUserServ(ctx context.Context, validater Validater, notifier Notifier, us
 	}
 }
 
+// TODO. Слабое место для атак методом перебора.
 func (s *UserServ) Verification(ctx context.Context, token string) (*response.UserResponse, error) {
-	// hashToken, err := hashpass.CreateHashPass(token)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// bcrypt ?
-
-	// TODO
-	// Остановка на хешировании токена верификации
-
 	// Take user from DB
-	user, err := s.UserRepo.GetItem(hashToken)
+	user, err := s.UserRepo.GetItem(hashpass.CreateHashSHA256(token))
 	if err != nil {
-		return nil, err
+		// Need wrap
+		return nil, fmt.Errorf("link is incorrect, please try again")
 	}
 
 	// Проверка, что EmailVerified == true, т.е. верификация случилась
@@ -50,21 +43,25 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*response.Us
 		return nil, fmt.Errorf("client has passed verification")
 	}
 
-	// Проверка подлинности токена
-	if err := hashpass.CheckPassword(user.VerificationToken, token); err != nil {
-		return nil, fmt.Errorf("token is invalid, please try again")
+	// Проверка количеств попыток, данные для верификации.
+	if user.Attempts == AttemptsCnt {
+		return nil, fmt.Errorf("attempts at verification have run out")
+	}
+	user.Attempts += 1
+
+	// Check time live of token
+	if user.TokenExpiresAt.Before(time.Now().UTC()) {
+		verificToken, err := user.UpdateVerificationToken()
+		if err != nil {
+			return nil, err
+		}
+		s.UserRepo.UpdateItem(user)               // Update user
+		s.Notifier.Send(user.Email, verificToken) // Send email to user
+
+		return nil, fmt.Errorf("link has expired, please try again")
 	}
 
-	// if user.VerificationToken != token {
-	// 	return nil, fmt.Errorf("token is invalid, please try again")
-	// }
-
-	// Проверка время жизни токена
-	if user.TokenExpiresAt.After(time.Now().UTC()) {
-		return nil, fmt.Errorf("token's time is invalid, please try again")
-	}
-
-	// Обновляем данные после успешной верификации
+	// User update after good verification
 	user.EmailVerified = true
 	user.VerificationToken = ""
 	user.TokenExpiresAt = nil
@@ -73,12 +70,10 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*response.Us
 	user.UpdatedAt = &timeNow
 	user.VerifiedAt = &timeNow
 
-	// Обновляем данные пользователя
 	s.UserRepo.UpdateItem(user)
 
 	msg := "verification was successful"
 	return adapters.ToUserResponseOnlyMess(msg), nil
-
 }
 
 func (s *UserServ) Create(ctx context.Context, userReq *dto.CreateUserRequest) (*response.UserResponse, error) {
@@ -94,27 +89,25 @@ func (s *UserServ) Create(ctx context.Context, userReq *dto.CreateUserRequest) (
 		return nil, err
 	}
 
-	// Generate Verification Token
-	verificToken, err := generators.GenerateToken(models.TokenLength)
-	if err != nil {
-		return nil, err
-	}
-
-	userReq.VerificationToken = verificToken
-
 	// Create domain user
 	newUser, err := models.NewUser(userReq)
 	if err != nil {
 		return nil, err
 	}
 
-	// Сохранили user в БД
+	// Create token
+	verificToken, err := newUser.UpdateVerificationToken()
+	if err != nil {
+		return nil, err
+	}
+
+	// Save user in DB
 	err = s.UserRepo.SaveItem(newUser)
 	if err != nil {
 		return nil, err
 	}
 
-	// Отправка асинхронно email для верификации пользователя
+	// Send email to user
 	s.Notifier.Send(newUser.Email, verificToken)
 
 	msg := fmt.Sprintf(
@@ -137,7 +130,7 @@ func (s *UserServ) Create(ctx context.Context, userReq *dto.CreateUserRequest) (
 // повтороне письмо, учетки нет, перекидываем на регистрацию.
 
 // Учетка верифицирована
-// >>
+// что дальше ?
 
 // Запрос на повторную верификацию. Нужно обновить время, токен
 // Soft Delete или Hard Delete -> cron, планировщик базы

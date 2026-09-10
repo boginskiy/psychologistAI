@@ -148,6 +148,7 @@ func (s *EmailServ) sendError(err error) {
 	select {
 	case s.errCh <- err:
 	default:
+		// Игнорируем ошибки, если переполнен канал.
 	}
 }
 

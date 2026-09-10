@@ -28,6 +28,10 @@ func ToCreateUserRequest(r *http.Request) (*dto.CreateUserRequest, error) {
 	return &user, nil
 }
 
+func ToLoginUserRequest(r *http.Request) {
+	// TODO/ Чтение боди, адаптеры обновить. Перейти на логин и далее делать логин
+}
+
 func ToToken(r *http.Request) string {
 	return chi.URLParam(r, "token")
 }

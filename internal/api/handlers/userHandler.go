@@ -33,7 +33,24 @@ func (h *UserHandler) Registration(r chi.Router) {
 }
 
 func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
+	userTmp := response.NewUserResponse()
 
+	userRequest, err := adapters.ToCreateUserRequest(r)
+	if err != nil {
+		userTmp.PrepareErrResponse(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, userTmp)
+		return
+	}
+
+	//
+
+	//
+	userRequest.Email
+	userRequest.Password
+
+	// Смотрим, есть ли подтверждение учетки
+	// Человек отправляет логин и пароль в теле
+	// Нужна кнопка для повторной или автоматически сделаем ?
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +68,7 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 	h.Sender.SendResponse(w, userResponse)
 }
 
+// Убрать из сервиса подготовку user Response и перенести ее сюда
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	userTmp := response.NewUserResponse()
 

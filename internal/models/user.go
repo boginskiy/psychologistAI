@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/pkg/generators"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/google/uuid"
 )
@@ -39,6 +40,7 @@ type User struct {
 	TokenExpiresAt    *time.Time `json:"token_expires_at" db:"token_expires_at"`
 	EmailVerified     bool       `json:"email_verified" db:"email_verified"`
 	VerificationToken string     `json:"verification_token" db:"verification_token"`
+	Attempts          int        `json:"attempts" db:"attempts"`
 }
 
 func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
@@ -46,37 +48,32 @@ func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	hashVerificationToken, err := hashpass.CreateHashPass(userReq.VerificationToken)
-	if err != nil {
-		return nil, err
-	}
-
-	// // Токен для верификации пользователя
-	// verificToken, err := generators.GenerateToken(TokenLength)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// Время жизни токена до N-time
-	tokenExpiresAt := time.Now().UTC().Add(TokenLifetime)
-
 	// Current time
 	timeNow := time.Now().UTC()
 
 	return &User{
-		ID:                uuid.Must(uuid.NewV7()),
-		Email:             userReq.Email,
-		Password:          hashPassword,
-		FirstName:         userReq.FirstName,
-		LastName:          userReq.LastName,
-		Phone:             userReq.Phone,
-		Role:              "user",
-		CreatedAt:         &timeNow,
-		UpdatedAt:         &timeNow,
-		VerifiedAt:        nil,
-		EmailVerified:     false,
-		VerificationToken: hashVerificationToken,
-		TokenExpiresAt:    &tokenExpiresAt,
+		ID:            uuid.Must(uuid.NewV7()),
+		Email:         userReq.Email,
+		Password:      hashPassword,
+		FirstName:     userReq.FirstName,
+		LastName:      userReq.LastName,
+		Phone:         userReq.Phone,
+		Role:          "user",
+		CreatedAt:     &timeNow,
+		UpdatedAt:     &timeNow,
+		VerifiedAt:    nil,
+		EmailVerified: false,
 	}, nil
+}
+
+func (u *User) UpdateVerificationToken() (string, error) {
+	// Generate New Verification Token
+	verificToken, err := generators.GenerateToken(TokenLength)
+	if err != nil {
+		return "", err
+	}
+	u.VerificationToken = hashpass.CreateHashSHA256(verificToken)
+	tokenExpiresAt := time.Now().UTC().Add(TokenLifetime)
+	u.TokenExpiresAt = &tokenExpiresAt
+	return verificToken, nil
 }

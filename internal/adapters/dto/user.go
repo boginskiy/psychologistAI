@@ -2,12 +2,17 @@ package dto
 
 // CreateUserRequest - DTO для создания пользователя
 type CreateUserRequest struct {
-	Email             string `json:"email" db:"email" validate:"required,email"`
-	Password          string `json:"password" db:"password_hash"`
-	VerificationToken string `json:"verification_token" db:"verification_token"`
-	FirstName         string `json:"first_name,omitempty" db:"first_name"`
-	LastName          string `json:"last_name,omitempty" db:"last_name"`
-	Phone             string `json:"phone,omitempty" db:"phone"`
+	Email     string `json:"email" db:"email" validate:"required,email"`
+	Password  string `json:"password" db:"password_hash"`
+	FirstName string `json:"first_name,omitempty" db:"first_name"`
+	LastName  string `json:"last_name,omitempty" db:"last_name"`
+	Phone     string `json:"phone,omitempty" db:"phone"`
+}
+
+// LoginUserRequest - DTO для авторизации пользователя
+type LoginUserRequest struct {
+	Email    string `json:"email" db:"email" validate:"required,email"`
+	Password string `json:"password" db:"password_hash"`
 }
 
 // UpdateUserRequest - DTO для обновления пользователя
