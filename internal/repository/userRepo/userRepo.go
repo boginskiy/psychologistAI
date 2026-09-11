@@ -18,6 +18,16 @@ func NewUserRepo() *UserRepo {
 	}
 }
 
+func (r *UserRepo) GetItem2(email string) (*models.User, error) {
+	userTb := r.DB.GetUserTable()
+	for e, user := range userTb {
+		if e == email {
+			return user, nil
+		}
+	}
+	return nil, fmt.Errorf("user was not found")
+}
+
 func (r *UserRepo) GetItem(token string) (*models.User, error) {
 	userTb := r.DB.GetUserTable()
 	for _, user := range userTb {

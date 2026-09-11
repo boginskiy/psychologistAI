@@ -19,9 +19,8 @@ type User struct {
 	Password string    `json:"-" db:"password_hash"` // Храним хеш, не выводим
 
 	// Личная информация
-	FirstName string `json:"first_name,omitempty" db:"first_name"`
-	LastName  string `json:"last_name,omitempty" db:"last_name"`
-	Phone     string `json:"phone,omitempty" db:"phone"`
+	Name  string `json:"name,omitempty" db:"name"`
+	Phone string `json:"phone,omitempty" db:"phone"`
 
 	// Статусы
 	IsActive bool   `json:"is_active" db:"is_active"`
@@ -43,8 +42,8 @@ type User struct {
 	Attempts          int        `json:"attempts" db:"attempts"`
 }
 
-func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
-	hashPassword, err := hashpass.CreateHashPass(userReq.Password)
+func NewUser(createUser *dto.CreateUser) (*User, error) {
+	hashPassword, err := hashpass.CreateHashPass(createUser.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -53,17 +52,20 @@ func NewUser(userReq *dto.CreateUserRequest) (*User, error) {
 
 	return &User{
 		ID:            uuid.Must(uuid.NewV7()),
-		Email:         userReq.Email,
+		Email:         createUser.Email,
 		Password:      hashPassword,
-		FirstName:     userReq.FirstName,
-		LastName:      userReq.LastName,
-		Phone:         userReq.Phone,
+		Name:          createUser.Name,
+		Phone:         createUser.Phone,
 		Role:          "user",
 		CreatedAt:     &timeNow,
 		UpdatedAt:     &timeNow,
 		VerifiedAt:    nil,
 		EmailVerified: false,
 	}, nil
+}
+
+func (u *User) CheckVerification() bool {
+	return u.EmailVerified && u.VerifiedAt != nil
 }
 
 func (u *User) UpdateVerificationToken() (string, error) {

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	"github.com/boginskiy/psychologistAI/internal/api/response"
+	"github.com/boginskiy/psychologistAI/internal/models"
 )
 
 type Validater interface {
@@ -16,6 +16,7 @@ type Notifier interface {
 }
 
 type UserService interface {
-	Create(ctx context.Context, userReq *dto.CreateUserRequest) (*response.UserResponse, error)
-	Verification(ctx context.Context, token string) (*response.UserResponse, error)
+	Create(ctx context.Context, user *dto.CreateUser) (*models.User, error)
+	Verification(ctx context.Context, token string) (*models.User, error)
+	Login(ctx context.Context, loginUser *dto.LoginUser) (string, error)
 }

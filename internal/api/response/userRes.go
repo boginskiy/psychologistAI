@@ -7,8 +7,7 @@ import (
 )
 
 type UserResponse struct {
-	FirstName string     `json:"first_name,omitempty"`
-	LastName  string     `json:"last_name,omitempty"`
+	Name      string     `json:"name,omitempty"`
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	errors.APIError
 }

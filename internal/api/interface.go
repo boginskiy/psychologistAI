@@ -4,18 +4,10 @@ import (
 	"net/http"
 )
 
-type Getter interface {
-	GetStatus() int
-}
-
-type Preparator interface {
-	PrepareOKResponse(status int)
-	PrepareErrResponse(err error, status int)
-}
-
 type ResponseWriter interface {
-	Getter
-	Preparator
+	GetStatus() int
+	UpdateErr(err error, status int)
+	UpdateInfo(info string, status int)
 }
 
 type Sender interface {
