@@ -2,27 +2,26 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
-	"github.com/boginskiy/psychologistAI/internal/api/handlers/mess"
+	"github.com/boginskiy/psychologistAI/internal/api/mess"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
-	"github.com/boginskiy/psychologistAI/internal/models"
-	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/internal/service/errs"
+	"github.com/boginskiy/psychologistAI/internal/user"
+	"github.com/boginskiy/psychologistAI/internal/user/models"
 	"github.com/boginskiy/psychologistAI/pkg/request"
 	"github.com/go-chi/chi"
 )
 
 type UserHandler struct {
-	UserService service.UserService
+	UserService user.UserService
 	Sender      api.Sender
 	basepath    string
 }
 
-func NewUserHandler(bpath string, userServ service.UserService, sender api.Sender) *UserHandler {
+func NewUserHandler(bpath string, userServ user.UserService, sender api.Sender) *UserHandler {
 	return &UserHandler{
 		UserService: userServ,
 		Sender:      sender,
@@ -56,19 +55,28 @@ func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err = h.UserService.Login(r.Context(), loginUser)
+	token, err := h.UserService.Login(r.Context(), loginUser)
 
-	// Errors / Убрать обработку ошибок в отдельную сущность
+	// Errors
 	if err != nil {
-		switch {
 
-		// Error Verification
+		// Logger
+		// +err
+
+		switch {
+		// Credentials
+		case errors.Is(err, errs.ErrInvalidCredentials):
+			messResponse.UpdateErr(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+
+		// Verification
 		case errors.Is(err, errs.ErrVerification):
 			messResponse.UpdateInfo(mess.MessNeedVerifyAccount, http.StatusForbidden)
 		case errors.Is(err, errs.ErrAttemptsVerification):
-			messResponse.UpdateInfo(mess.MessExceedingVerificationAttempts, http.StatusTooManyRequests)
+			messResponse.UpdateErr(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
-		// Error
+		// Server
+		case errors.Is(err, errs.ErrServer):
+			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
 			messResponse.UpdateErr(err, http.StatusBadRequest)
@@ -76,6 +84,11 @@ func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 		h.Sender.SendResponse(w, messResponse)
 		return
 	}
+
+	token.Access
+
+	// Сделать Куки и положить туда!
+	token.Refresh
 
 	// Прикрепить JWT
 }
@@ -92,15 +105,30 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = h.UserService.Verification(r.Context(), token)
+
+	// Errors
 	if err != nil {
-		messResponse.UpdateErr(err, http.StatusBadRequest)
+		switch {
+		// Verification
+		case errors.Is(err, errs.ErrLinkVerification):
+			messResponse.UpdateErr(errs.ErrLinkVerification, http.StatusNotFound)
+		case errors.Is(err, errs.ErrRepeatVerification):
+			messResponse.UpdateErr(errs.ErrRepeatVerification, http.StatusBadRequest)
+		case errors.Is(err, errs.ErrAttemptsVerification):
+			messResponse.UpdateErr(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
+
+		// Server
+		case errors.Is(err, errs.ErrServer):
+			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
+
+		default:
+			messResponse.UpdateErr(err, http.StatusBadRequest)
+		}
 		h.Sender.SendResponse(w, messResponse)
 		return
 	}
 
-	msg := "verification was successful"
-
-	messResponse.UpdateInfo(msg, http.StatusOK)
+	messResponse.UpdateInfo(mess.MessOkVerification, http.StatusOK)
 	h.Sender.SendResponse(w, messResponse)
 }
 
@@ -122,14 +150,23 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Errors
 	if err != nil {
-		messResponse.UpdateErr(err, http.StatusBadRequest)
+		switch {
+		// Credentials
+		case errors.Is(err, errs.ErrInvalidCredentials):
+			messResponse.UpdateErr(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+
+			// Server
+		case errors.Is(err, errs.ErrServer):
+			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
+
+		default:
+			messResponse.UpdateErr(err, http.StatusBadRequest)
+		}
 		h.Sender.SendResponse(w, messResponse)
 		return
 	}
 
-	msg := fmt.Sprintf("go to '%s' and verify the account for %v minutes",
-		userDomen.Email, models.TokenLifetime.Minutes())
-
+	msg := mess.FuncNeedRegistration(userDomen.Email, int(models.VerifTokenLifetime.Minutes()))
 	messResponse.UpdateInfo(msg, http.StatusOK)
 	h.Sender.SendResponse(w, messResponse)
 }

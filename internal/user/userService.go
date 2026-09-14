@@ -1,4 +1,4 @@
-package business
+package user
 
 import (
 	"context"
@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	"github.com/boginskiy/psychologistAI/internal/models"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/internal/service/errs"
+	"github.com/boginskiy/psychologistAI/internal/user/models"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
@@ -38,66 +38,73 @@ func NewUserServ(
 	}
 }
 
-func (s *UserServ) Login(ctx context.Context, loginUser *dto.LoginUser) (string, error) {
+func (s *UserServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error) {
 	// Check user
 	userDomain, err := s.UserRepo.GetItem2(loginUser.Email)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Check password
-	err = hashpass.CheckPassword(userDomain.Password, loginUser.Password)
+	err = hashpass.CheckBcryptPassword(userDomain.HashPassword, loginUser.Password)
 	if err != nil {
-		// TODO. Что будем делать с такими ошибками.
-		return "", err
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Verification
 	if !userDomain.CheckVerification() {
 		if userDomain.Attempts >= AttemptsCnt {
-			return "", errs.ErrAttemptsVerific
+			return nil, errs.ErrAttemptsVerification
 		}
 		userDomain.Attempts += 1
 		verificToken, err := userDomain.UpdateVerificationToken()
 		if err != nil {
-			return "", fmt.Errorf("%w: %w", errs.ErrUpdateVerificToken, err)
+			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
 		s.UserRepo.UpdateItem(userDomain)               // Update user
 		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
-		return "", errs.ErrVerification
+		return nil, errs.ErrVerification
 	}
 
-	// JWT
+	// JWT. Generation Access Token
 	claim := jwtservice.NewDefaultClaims(
 		userDomain.ID,
 		userDomain.Role,
 		userDomain.Name)
 
-	tokenStr, err := s.JWTManager.GenerateToken(claim)
+	accessToken, err := s.JWTManager.GenerateToken(claim)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
-	return tokenStr, nil
+	// Generation Refresh Token
+	refreshToken, err := userDomain.UpdateRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
+	}
+
+	// Update user
+	s.UserRepo.UpdateItem(userDomain)
+
+	return models.NewToken(accessToken, refreshToken), nil
 }
 
 // TODO. Слабое место для атак методом перебора.
 func (s *UserServ) Verification(ctx context.Context, token string) (*models.User, error) {
 	// Take user from DB
-	userDomain, err := s.UserRepo.GetItem(hashpass.CreateHashSHA256(token))
+	userDomain, err := s.UserRepo.GetItem(hashpass.CreateBytesHashSHA256(token))
 	if err != nil {
-		// Need wrap
-		return nil, fmt.Errorf("link is incorrect, please try again")
+		return nil, fmt.Errorf("%w: %w", errs.ErrLinkVerification, err)
 	}
 
 	// Проверка, что EmailVerified == true, т.е. верификация случилась
 	if userDomain.EmailVerified == true {
-		return nil, fmt.Errorf("client has passed verification")
+		return nil, errs.ErrRepeatVerification
 	}
 
 	// Проверка количеств попыток, данные для верификации.
 	if userDomain.Attempts >= AttemptsCnt {
-		return nil, errs.ErrAttemptsVerific
+		return nil, errs.ErrAttemptsVerification
 	}
 	userDomain.Attempts += 1
 
@@ -105,17 +112,17 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*models.User
 	if userDomain.TokenExpiresAt.Before(time.Now().UTC()) {
 		verificToken, err := userDomain.UpdateVerificationToken()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
 		s.UserRepo.UpdateItem(userDomain)               // Update user
 		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
 
-		return nil, fmt.Errorf("link has expired, please try again")
+		return nil, errs.ErrVerification
 	}
 
 	// User update after good verification
 	userDomain.EmailVerified = true
-	userDomain.VerificationToken = ""
+	userDomain.HashVerifToken = []byte{}
 	userDomain.TokenExpiresAt = nil
 
 	timeNow := time.Now().UTC()
@@ -131,43 +138,44 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*mod
 	// Валидация Email
 	err := s.Validater.CheckNotEmptyStrField("email", createUser.Email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Валидация Password
 	err = s.Validater.CheckNotEmptyStrField("password", createUser.Password)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Create domain user
 	userDomain, err := models.NewUser(createUser)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	// Create token
 	verificToken, err := userDomain.UpdateVerificationToken()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	// Save user in DB
 	err = s.UserRepo.SaveItem(userDomain)
 	if err != nil {
-		return nil, err
+		// TODО, пока отправляем ошибку сервера, но в целом у пользователя может быть не уникальный email
+		// и тогда ему надо что то передать.
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
-	// Send email to user
+	// Send email to ErrServeruser
 	s.Notifier.Send(userDomain.Email, verificToken)
 
 	return userDomain, nil
 }
 
-// TODO!
-// Работа с ошибками! В сервисном слое
-
 // Сценарий:
+// Предусмотреть кнопку "выйти"
+
 // Удаление зомби-записи
 
 // Сессионные куки ?

@@ -2,7 +2,7 @@ package hashpass
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
+	"crypto/subtle"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -10,11 +10,11 @@ import (
 const DefaultCost = 12
 const Size = 32
 
-func CheckPassword(hashedPassword, password string) error {
+func CheckBcryptPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-func CreateHashPass(password string) (string, error) {
+func CreateBcryptHashPassword(password string) (string, error) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), DefaultCost)
 	if err != nil {
 		return "", err
@@ -22,13 +22,19 @@ func CreateHashPass(password string) (string, error) {
 	return string(hashed), nil
 }
 
-func CreateHashSHA256(token string) string {
+func CreateBytesHashSHA256(token string) []byte {
 	hasher := sha256.New()
 	hasher.Write([]byte(token))
-	sum := hasher.Sum(nil)
-	return hex.EncodeToString(sum)
+	return hasher.Sum(nil)
 }
 
-func CheckHashSHA256(hashedToken, token string) bool {
-	return hashedToken == CreateHashSHA256(token)
+func CheckHashSHA256(hashedToken []byte, token string) bool {
+	return subtle.ConstantTimeCompare(CreateBytesHashSHA256(token), hashedToken) == 1
+}
+
+func CreateBytesHashSHA256WithSalt(salt []byte, token string) []byte {
+	hasher := sha256.New()
+	hasher.Write(salt)
+	hasher.Write([]byte(token))
+	return hasher.Sum(nil)
 }

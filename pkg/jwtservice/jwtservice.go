@@ -54,11 +54,3 @@ func (s *JWTService) CheckAndParseToken(tokenStr string, claims Claims) (Claims,
 
 	return claims, nil
 }
-
-//
-// switch {
-//     case errors.Is(err, auth.ErrTokenSigning):
-//         // точно знаем — это ошибка подписи
-//         return nil, status.Error(codes.Internal, "token signing failed")
-//     default:
-//         return nil, err

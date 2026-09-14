@@ -2,7 +2,7 @@ package commrepo
 
 import (
 	"github.com/boginskiy/psychologistAI/internal/db"
-	"github.com/boginskiy/psychologistAI/internal/models"
+	"github.com/boginskiy/psychologistAI/internal/user/models"
 )
 
 type CommRepo struct {

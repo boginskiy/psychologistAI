@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/internal/api/response"
-	"github.com/boginskiy/psychologistAI/internal/models"
+	"github.com/boginskiy/psychologistAI/internal/user/models"
 	"github.com/go-chi/chi"
 )
 
