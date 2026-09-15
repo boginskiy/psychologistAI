@@ -1,7 +1,7 @@
 package mapDB
 
 import (
-	"github.com/boginskiy/psychologistAI/internal/models"
+	models "github.com/boginskiy/psychologistAI/internal/models/users"
 )
 
 type MapDB struct {

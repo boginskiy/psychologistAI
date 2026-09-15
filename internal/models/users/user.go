@@ -1,6 +1,7 @@
 package models
 
 import (
+	"crypto/subtle"
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
@@ -80,6 +81,10 @@ func (u *User) UpdateVerificationToken() (string, error) {
 	tokenExpiresAt := time.Now().UTC().Add(VerifTokenLifetime)
 	u.TokenExpiresAt = &tokenExpiresAt
 	return verificToken, nil
+}
+
+func (u *User) CompareHash(hashToken []byte) bool {
+	return subtle.ConstantTimeCompare(u.HashVerifToken, hashToken) == 1
 }
 
 func (u *User) UpdateRefreshToken() (string, error) {

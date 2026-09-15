@@ -11,6 +11,8 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
+	"github.com/boginskiy/psychologistAI/internal/service/infra"
+	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
 
 type App struct {
@@ -56,15 +58,16 @@ func (a *App) initModules(ctx context.Context) error {
 
 func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
-	validater := service.NewValidService(ctx)
-	notifier := service.NewEmailServ(ctx)
+	validater := infra.NewValidService(ctx)
+	notifier := infra.NewEmailServ(ctx)
 	response := response.NewResponse()
+	jwtManager := jwtservice.NewJWTService()
 
 	// Repo
 	userRepo := userrepo.NewUserRepo()
 
 	// Services
-	userService := service.NewUserServ(ctx, validater, notifier, userRepo)
+	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
 
 	// Handlers
 	userHandler := handlers.NewUserHandler("/user", userService, response)

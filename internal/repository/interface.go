@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/boginskiy/psychologistAI/internal/user/models"
+import models "github.com/boginskiy/psychologistAI/internal/models/users"
 
 type UserRepo interface {
 	SaveItem(user *models.User) error

@@ -19,7 +19,9 @@ func (s *JWTService) GenerateToken(claims Claims) (string, error) {
 	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Подписываем токен нашим секретным ключом
-	signedToken, err := newToken.SignedString(JWT_SECRET_KEY)
+	key := []byte(JWT_SECRET_KEY)
+
+	signedToken, err := newToken.SignedString(key)
 	if err != nil {
 		// logger err
 		return "", fmt.Errorf("%w: %w", ErrTokenSigning, err)

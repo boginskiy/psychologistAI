@@ -1,6 +1,6 @@
 package db
 
-import "github.com/boginskiy/psychologistAI/internal/models"
+import models "github.com/boginskiy/psychologistAI/internal/models/users"
 
 type DataBase interface {
 	GetUserTable() map[string]*models.User

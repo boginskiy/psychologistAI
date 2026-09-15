@@ -10,9 +10,10 @@ type Claims interface {
 	GetID() uuid.UUID
 	GetRole() string
 	GetName() string
+	GetExpiresIn() int
 }
 
 type JWTManager interface {
 	GenerateToken(claims Claims) (string, error)
-	CheckAndParseToken(token string) (Claims, error)
+	CheckAndParseToken(tokenStr string, claims Claims) (Claims, error)
 }

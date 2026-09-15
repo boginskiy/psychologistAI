@@ -32,6 +32,10 @@ func CheckHashSHA256(hashedToken []byte, token string) bool {
 	return subtle.ConstantTimeCompare(CreateBytesHashSHA256(token), hashedToken) == 1
 }
 
+func CheckHash2SHA256(hashedToken []byte, hashToken []byte) bool {
+	return subtle.ConstantTimeCompare(hashedToken, hashToken) == 1
+}
+
 func CreateBytesHashSHA256WithSalt(salt []byte, token string) []byte {
 	hasher := sha256.New()
 	hasher.Write(salt)

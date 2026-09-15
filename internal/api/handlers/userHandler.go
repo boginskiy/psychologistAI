@@ -6,22 +6,25 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
-	"github.com/boginskiy/psychologistAI/internal/api/mess"
-	"github.com/boginskiy/psychologistAI/internal/api/response"
-	"github.com/boginskiy/psychologistAI/internal/service/errs"
-	"github.com/boginskiy/psychologistAI/internal/user"
-	"github.com/boginskiy/psychologistAI/internal/user/models"
+	"github.com/boginskiy/psychologistAI/internal/api/vars"
+	"github.com/boginskiy/psychologistAI/internal/errs/users"
+	"github.com/boginskiy/psychologistAI/internal/models/responses"
+	models "github.com/boginskiy/psychologistAI/internal/models/users"
+	"github.com/boginskiy/psychologistAI/internal/service"
+
 	"github.com/boginskiy/psychologistAI/pkg/request"
 	"github.com/go-chi/chi"
 )
 
+const Token = "token"
+
 type UserHandler struct {
-	UserService user.UserService
+	UserService service.UserService
 	Sender      api.Sender
 	basepath    string
 }
 
-func NewUserHandler(bpath string, userServ user.UserService, sender api.Sender) *UserHandler {
+func NewUserHandler(bpath string, userServ service.UserService, sender api.Sender) *UserHandler {
 	return &UserHandler{
 		UserService: userServ,
 		Sender:      sender,
@@ -35,23 +38,23 @@ func (h *UserHandler) Registration(r chi.Router) {
 		r.Post("/login", h.Loginer)         // POST /api/v1/user/login
 
 		r.Get("/verification/{token}", h.Verifier) // GET  /api/v1/user/verification/{token}
-		r.Get("{id}", h.Informer)                  // GET  /api/v1/user/{id}
+		r.Get("/{id}", h.Informer)                 // GET  /api/v1/user/{id}
 
 	})
 }
 
 func (h *UserHandler) Informer(w http.ResponseWriter, r *http.Request) {
-	return
+
 }
 
 func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
-	messResponse := &response.MessRes{}
+	tokenResponse := &responses.TokenResponse{}
 	loginUser := &dto.LoginUser{}
 
 	_, err := request.ReadAllRequestBody(r, loginUser)
 	if err != nil {
-		messResponse.UpdateErr(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, messResponse)
+		tokenResponse.ErrorUpdate(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, tokenResponse)
 		return
 	}
 
@@ -65,83 +68,79 @@ func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 		switch {
 		// Credentials
-		case errors.Is(err, errs.ErrInvalidCredentials):
-			messResponse.UpdateErr(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+		case errors.Is(err, users.ErrInvalidCredentials):
+			tokenResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
 
 		// Verification
-		case errors.Is(err, errs.ErrVerification):
-			messResponse.UpdateInfo(mess.MessNeedVerifyAccount, http.StatusForbidden)
-		case errors.Is(err, errs.ErrAttemptsVerification):
-			messResponse.UpdateErr(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
+		case errors.Is(err, users.ErrVerification):
+			tokenResponse.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
+		case errors.Is(err, users.ErrAttemptsVerification):
+			tokenResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, errs.ErrServer):
-			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, users.ErrServer):
+			// users.ErrServer
+			tokenResponse.ErrorUpdate(err, http.StatusInternalServerError)
 
 		default:
-			messResponse.UpdateErr(err, http.StatusBadRequest)
+			tokenResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, messResponse)
+		h.Sender.SendResponse(w, tokenResponse)
 		return
 	}
 
-	token.Access
+	tokenResponse.AttrsUpdate(token, http.StatusOK)
+	h.Sender.SendResponse(w, tokenResponse)
+
+	_ = token.Refresh
 
 	// Сделать Куки и положить туда!
-	token.Refresh
+	// token.Refresh
 
-	// Прикрепить JWT
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
-	messResponse := &response.MessRes{}
-	var token string
+	infoResponse := &responses.InfoResponse{}
+	token := chi.URLParam(r, Token)
 
-	_, err := request.ReadAllRequestBody(r, &token)
-	if err != nil {
-		messResponse.UpdateErr(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, messResponse)
-		return
-	}
-
-	_, err = h.UserService.Verification(r.Context(), token)
+	_, err := h.UserService.Verification(r.Context(), token)
 
 	// Errors
 	if err != nil {
 		switch {
 		// Verification
-		case errors.Is(err, errs.ErrLinkVerification):
-			messResponse.UpdateErr(errs.ErrLinkVerification, http.StatusNotFound)
-		case errors.Is(err, errs.ErrRepeatVerification):
-			messResponse.UpdateErr(errs.ErrRepeatVerification, http.StatusBadRequest)
-		case errors.Is(err, errs.ErrAttemptsVerification):
-			messResponse.UpdateErr(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
+		case errors.Is(err, users.ErrLinkVerification):
+			infoResponse.ErrorUpdate(users.ErrLinkVerification, http.StatusNotFound)
+		case errors.Is(err, users.ErrRepeatVerification):
+			infoResponse.ErrorUpdate(users.ErrRepeatVerification, http.StatusBadRequest)
+		case errors.Is(err, users.ErrAttemptsVerification):
+			infoResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, errs.ErrServer):
-			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, users.ErrServer):
+			infoResponse.ErrorUpdate(users.ErrServer, http.StatusInternalServerError)
 
 		default:
-			messResponse.UpdateErr(err, http.StatusBadRequest)
+			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, messResponse)
+		h.Sender.SendResponse(w, infoResponse)
 		return
 	}
 
-	messResponse.UpdateInfo(mess.MessOkVerification, http.StatusOK)
-	h.Sender.SendResponse(w, messResponse)
+	infoResponse.InfoUpdate(vars.MessOkVerification, http.StatusOK)
+	h.Sender.SendResponse(w, infoResponse)
 }
 
 // Убрать из сервиса подготовку user Response и перенести ее сюда
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	messResponse := &response.MessRes{}
+	infoResponse := &responses.InfoResponse{}
 	createUser := &dto.CreateUser{}
 
 	_, err := request.ReadAllRequestBody(r, createUser)
 
 	if err != nil {
-		messResponse.UpdateErr(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, messResponse)
+		infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+		h.Sender.SendResponse(w, infoResponse)
 		return
 	}
 
@@ -152,21 +151,21 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		// Credentials
-		case errors.Is(err, errs.ErrInvalidCredentials):
-			messResponse.UpdateErr(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+		case errors.Is(err, users.ErrInvalidCredentials):
+			infoResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
 
 			// Server
-		case errors.Is(err, errs.ErrServer):
-			messResponse.UpdateErr(errs.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, users.ErrServer):
+			infoResponse.ErrorUpdate(users.ErrServer, http.StatusInternalServerError)
 
 		default:
-			messResponse.UpdateErr(err, http.StatusBadRequest)
+			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, messResponse)
+		h.Sender.SendResponse(w, infoResponse)
 		return
 	}
 
-	msg := mess.FuncNeedRegistration(userDomen.Email, int(models.VerifTokenLifetime.Minutes()))
-	messResponse.UpdateInfo(msg, http.StatusOK)
-	h.Sender.SendResponse(w, messResponse)
+	msg := vars.FuncNeedRegistration(userDomen.Email, int(models.VerifTokenLifetime.Minutes()))
+	infoResponse.InfoUpdate(msg, http.StatusOK)
+	h.Sender.SendResponse(w, infoResponse)
 }
