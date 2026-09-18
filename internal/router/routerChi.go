@@ -2,29 +2,38 @@ package router
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
 	"github.com/go-chi/chi"
 )
 
 type RouterChi struct {
-	R *chi.Mux
+	mux     *chi.Mux
+	version string
 }
 
-func NewRouterChi(ctx context.Context) *RouterChi {
+func NewRouterChi(ctx context.Context, vers string) *RouterChi {
 	return &RouterChi{
-		R: chi.NewRouter(),
+		mux:     chi.NewRouter(),
+		version: vers,
 	}
 }
 
-func (r *RouterChi) Registration(userHandler, homeHandler handlers.Registrar) {
-	r.R.Route("/api/v1", func(r chi.Router) {
+func (c *RouterChi) Run() http.Handler {
+	return c.mux
+}
+
+func (c *RouterChi) RegisterRoutes(handlers ...handlers.Registrar) http.Handler {
+	c.mux.Route(c.version, func(r chi.Router) {
 
 		// Добавляем middleware для всей API
-		// r.Use(middleware.Logger)
+		//r.Use(middleware.Logger)
 
-		// Регистрируем маршруты.
-		r.Route("/users", func(r chi.Router) { userHandler.Registration(r) })
-		r.Route("/home", func(r chi.Router) { homeHandler.Registration(r) })
+		for _, handler := range handlers {
+			handler.Registration(r)
+		}
 	})
+
+	return c.mux
 }
