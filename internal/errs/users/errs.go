@@ -11,7 +11,4 @@ var (
 
 	// Credentials
 	ErrInvalidCredentials = errors.New("invalid email or password")
-
-	// Sever:
-	ErrServer = errors.New("server error")
 )

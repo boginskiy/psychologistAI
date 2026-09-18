@@ -10,8 +10,10 @@ type CreateUser struct {
 
 // LoginUserRequest - DTO для авторизации пользователя
 type LoginUser struct {
-	Email    string `json:"email" db:"email" validate:"required,email"`
-	Password string `json:"password" db:"password_hash"`
+	Email     string `json:"email" db:"email" validate:"required,email"`
+	Password  string `json:"password" db:"password_hash"`
+	IP        string `json:"-" db:"user_ip"`
+	UserAgent string `json:"-" db:"user_ip"`
 }
 
 // UpdateUserRequest - DTO для обновления пользователя

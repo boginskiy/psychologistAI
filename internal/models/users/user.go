@@ -2,18 +2,15 @@ package models
 
 import (
 	"crypto/subtle"
+	"fmt"
 	"time"
 
+	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/pkg/generators"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/google/uuid"
 )
-
-const TokenLength = 32
-const VerifTokenLifetime = 15 * time.Minute     // 15 минут
-const RefreshTokenLifetime = 24 * 7 * time.Hour // 7 дней
-const SaltLength = 16
 
 type User struct {
 	ID           uuid.UUID `json:"id" db:"id"`
@@ -32,16 +29,16 @@ type User struct {
 	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // soft delete
 
 	// Верификации пользователя
-	HashVerifToken []byte     `json:"hash_verif_token" db:"hash_verif_token"`
-	TokenExpiresAt *time.Time `json:"token_expires_at" db:"token_expires_at"`
-	VerifiedAt     *time.Time `json:"verified_at" db:"verified_at"`
-	EmailVerified  bool       `json:"email_verified" db:"email_verified"`
-	Attempts       int        `json:"attempts" db:"attempts"`
+	HashVerifToken       []byte     `json:"hash_verif_token" db:"hash_verif_token"`
+	ExpiresAtVerifToken  *time.Time `json:"expires_at_verif_token" db:"expires_at_verif_token"`
+	VerifiedAtVerifToken *time.Time `json:"verified_at_verif_token" db:"verified_at_verif_token"`
+	EmailVerified        bool       `json:"email_verified" db:"email_verified"`
+	Attempts             int        `json:"attempts" db:"attempts"`
 
 	// Аутентификация пользователя
 	HashRefreshToken      []byte     `json:"hash_refresh_token" db:"hash_refresh_token"`
 	Salt                  []byte     `json:"salt" db:"salt"`
-	RefreshTokenExpiresAt *time.Time `json:"refresh_token_expires_at" db:"refresh_token_expires_at"`
+	ExpiresAtRefreshToken *time.Time `json:"expires_at_refresh_token" db:"expires_at_refresh_token"`
 	DeviceInfo            DeviceInfo `json:"device_info" db:"device_info"`
 }
 
@@ -54,32 +51,32 @@ func NewUser(createUser *dto.CreateUser) (*User, error) {
 	timeNow := time.Now().UTC()
 
 	return &User{
-		ID:            generators.CreateUUIDv7(),
-		Email:         createUser.Email,
-		HashPassword:  hashPassword,
-		Name:          createUser.Name,
-		Phone:         createUser.Phone,
-		Role:          "user",
-		CreatedAt:     &timeNow,
-		UpdatedAt:     &timeNow,
-		VerifiedAt:    nil,
-		EmailVerified: false,
+		ID:                   generators.CreateUUIDv7(),
+		Email:                createUser.Email,
+		HashPassword:         hashPassword,
+		Name:                 createUser.Name,
+		Phone:                createUser.Phone,
+		Role:                 "user",
+		CreatedAt:            &timeNow,
+		UpdatedAt:            &timeNow,
+		VerifiedAtVerifToken: nil,
+		EmailVerified:        false,
 	}, nil
 }
 
 func (u *User) CheckVerification() bool {
-	return u.EmailVerified && u.VerifiedAt != nil
+	return u.EmailVerified && u.VerifiedAtVerifToken != nil
 }
 
 func (u *User) UpdateVerificationToken() (string, error) {
 	// Generate New Verification Token
-	verificToken, err := generators.GenerateTokenBase64(TokenLength)
+	verificToken, err := generators.GenerateTokenBase64(config.LENGTH_VARIFICATION_TOKEN)
 	if err != nil {
 		return "", err
 	}
 	u.HashVerifToken = hashpass.CreateBytesHashSHA256(verificToken)
-	tokenExpiresAt := time.Now().UTC().Add(VerifTokenLifetime)
-	u.TokenExpiresAt = &tokenExpiresAt
+	tokenExpiresAt := time.Now().UTC().Add(config.LIVE_TIME_VARIFICATION_TOKEN)
+	u.ExpiresAtVerifToken = &tokenExpiresAt
 	return verificToken, nil
 }
 
@@ -87,27 +84,34 @@ func (u *User) CompareHash(hashToken []byte) bool {
 	return subtle.ConstantTimeCompare(u.HashVerifToken, hashToken) == 1
 }
 
-func (u *User) UpdateRefreshToken() (string, error) {
+func (u *User) UpdateRefreshToken(ip, userAgent string) (string, error) {
 	err := u.updateSalt()
 	if err != nil {
 		return "", err
 	}
 
-	u.updateRefreshExpiresAt()
+	// TODO? Зашить в токен данные! Например ID пользователя
 
 	token := generators.CreateUUIDv7ToString()
-	u.HashRefreshToken = hashpass.CreateBytesHashSHA256WithSalt(u.Salt, token)
+	tokenFull := u.assembleFullToken(token, ip, userAgent)
+
+	u.HashRefreshToken = hashpass.CreateBytesHashSHA256WithSalt(u.Salt, tokenFull)
+	u.updateRefreshExpiresAt()
 
 	return token, nil
 }
 
+func (u *User) assembleFullToken(token, ip, userAgent string) string {
+	return fmt.Sprintf("%s:%s:%s", token, ip, userAgent)
+}
+
 func (u *User) updateRefreshExpiresAt() {
-	refreshTokenExpiresAt := time.Now().UTC().Add(RefreshTokenLifetime)
-	u.RefreshTokenExpiresAt = &refreshTokenExpiresAt
+	refreshTokenExpiresAt := time.Now().UTC().Add(config.LIVE_TIME_REFRESH_TOKEN)
+	u.ExpiresAtRefreshToken = &refreshTokenExpiresAt
 }
 
 func (u *User) updateSalt() error {
-	salt, err := generators.GenerateRandomBytes(SaltLength)
+	salt, err := generators.GenerateRandomBytes(config.LENGTH_SALT)
 	if err != nil {
 		return err
 	}

@@ -2,16 +2,19 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
+	"github.com/boginskiy/psychologistAI/internal/errs/server"
 	"github.com/boginskiy/psychologistAI/internal/errs/users"
 	"github.com/boginskiy/psychologistAI/internal/models/responses"
-	models "github.com/boginskiy/psychologistAI/internal/models/users"
 	"github.com/boginskiy/psychologistAI/internal/service"
 
+	"github.com/boginskiy/psychologistAI/pkg/cookie"
 	"github.com/boginskiy/psychologistAI/pkg/request"
 	"github.com/go-chi/chi"
 )
@@ -19,16 +22,18 @@ import (
 const Token = "token"
 
 type UserHandler struct {
-	UserService service.UserService
-	Sender      api.Sender
-	basepath    string
+	UserService    service.UserService
+	Cooker         cookie.Cooker
+	ResponseSender api.ResponseSender
+	basepath       string
 }
 
-func NewUserHandler(bpath string, userServ service.UserService, sender api.Sender) *UserHandler {
+func NewUserHandler(bpath string, userServ service.UserService, resSender api.ResponseSender, cooker cookie.Cooker) *UserHandler {
 	return &UserHandler{
-		UserService: userServ,
-		Sender:      sender,
-		basepath:    bpath,
+		UserService:    userServ,
+		Cooker:         cooker,
+		ResponseSender: resSender,
+		basepath:       bpath,
 	}
 }
 
@@ -48,16 +53,23 @@ func (h *UserHandler) Informer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
-	tokenResponse := &responses.TokenResponse{}
+	infoResponse := &responses.InfoResponse{}
 	loginUser := &dto.LoginUser{}
 
+	// Read body
 	_, err := request.ReadAllRequestBody(r, loginUser)
 	if err != nil {
-		tokenResponse.ErrorUpdate(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, tokenResponse)
+		infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
 
+	// Take context (Binding). Берем Реальный IP пользователя.
+	loginUser.IP = request.TakeRealUserIP(r)
+	// Берем инфо с User-Agent. Info: OS, Browser, Device
+	loginUser.UserAgent = request.TakeInfoAboutUserAgent(r)
+
+	// Service
 	token, err := h.UserService.Login(r.Context(), loginUser)
 
 	// Errors
@@ -69,34 +81,42 @@ func (h *UserHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 		switch {
 		// Credentials
 		case errors.Is(err, users.ErrInvalidCredentials):
-			tokenResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
+			infoResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
 
 		// Verification
 		case errors.Is(err, users.ErrVerification):
-			tokenResponse.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
+			infoResponse.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
 		case errors.Is(err, users.ErrAttemptsVerification):
-			tokenResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
+			infoResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, users.ErrServer):
+		case errors.Is(err, server.ErrServer):
 			// users.ErrServer
-			tokenResponse.ErrorUpdate(err, http.StatusInternalServerError)
+			infoResponse.ErrorUpdate(err, http.StatusInternalServerError)
 
 		default:
-			tokenResponse.ErrorUpdate(err, http.StatusBadRequest)
+			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, tokenResponse)
+		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
 
-	tokenResponse.AttrsUpdate(token, http.StatusOK)
-	h.Sender.SendResponse(w, tokenResponse)
+	// Cookies
+	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, token.Access)
+	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.Refresh)
 
-	_ = token.Refresh
+	if err1 != nil || err2 != nil {
+		// + Logger full error
+		fmt.Println(fmt.Errorf("%s:%s:%s", server.ErrServer, err1, err2))
+		infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
+		h.ResponseSender.SendResponse(w, infoResponse)
+		return
+	}
 
-	// Сделать Куки и положить туда!
-	// token.Refresh
-
+	// Response
+	h.ResponseSender.AddSetCookies(w, cookieAccessToken, cookieRefreshToken)
+	infoResponse.InfoUpdate(vars.MessOkLogin, http.StatusOK)
+	h.ResponseSender.SendResponse(w, infoResponse)
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
@@ -117,18 +137,18 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 			infoResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, users.ErrServer):
-			infoResponse.ErrorUpdate(users.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, server.ErrServer):
+			infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
 
 		default:
 			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, infoResponse)
+		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
 
 	infoResponse.InfoUpdate(vars.MessOkVerification, http.StatusOK)
-	h.Sender.SendResponse(w, infoResponse)
+	h.ResponseSender.SendResponse(w, infoResponse)
 }
 
 // Убрать из сервиса подготовку user Response и перенести ее сюда
@@ -140,7 +160,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		infoResponse.ErrorUpdate(err, http.StatusBadRequest)
-		h.Sender.SendResponse(w, infoResponse)
+		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
 
@@ -155,17 +175,17 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 			infoResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
 
 			// Server
-		case errors.Is(err, users.ErrServer):
-			infoResponse.ErrorUpdate(users.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, server.ErrServer):
+			infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
 
 		default:
 			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.Sender.SendResponse(w, infoResponse)
+		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
 
-	msg := vars.FuncNeedRegistration(userDomen.Email, int(models.VerifTokenLifetime.Minutes()))
+	msg := vars.FuncNeedRegistration(userDomen.Email, config.LIVE_TIME_VARIFICATION_TOKEN)
 	infoResponse.InfoUpdate(msg, http.StatusOK)
-	h.Sender.SendResponse(w, infoResponse)
+	h.ResponseSender.SendResponse(w, infoResponse)
 }

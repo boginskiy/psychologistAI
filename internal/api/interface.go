@@ -2,20 +2,27 @@ package api
 
 import (
 	"net/http"
-
-	models "github.com/boginskiy/psychologistAI/internal/models/users"
 )
 
-type ResponseWriter interface {
+type StatusGetter interface {
 	GetStatus() int
 }
 
-type UpdaterResponse interface {
+type ErrorUpdater interface {
 	ErrorUpdate(err error, status int)
+}
+type InfoUpdater interface {
 	InfoUpdate(msg string, status int)
-	AttrsUpdate(token *models.Token, status int)
 }
 
-type Sender interface {
-	SendResponse(w http.ResponseWriter, item ResponseWriter)
+type ResponseBody interface {
+	ErrorUpdater
+	StatusGetter
+	InfoUpdater
+}
+
+type ResponseSender interface {
+	SetContentType(w http.ResponseWriter, contentType string)
+	AddSetCookies(w http.ResponseWriter, cookies ...*http.Cookie)
+	SendResponse(w http.ResponseWriter, body ResponseBody)
 }

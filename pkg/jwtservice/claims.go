@@ -3,13 +3,15 @@ package jwtservice
 import (
 	"time"
 
+	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
 
-const TIME_LIVE_TOKEN = 15 * time.Minute
-const HOST_SITE = "psychologistAI.com"
-const JWT_SECRET_KEY = "cjlsjdc3r483ucdhcyeruf9ehrc"
+// Exumple:
+// const TIME_LIVE_TOKEN = 15 * time.Minute
+// const HOST_SITE = "psychologistAI.com"
+// const JWT_SECRET_KEY = "wcwacawever54fcSD"
 
 type DefaultClaims struct {
 	ID   uuid.UUID `json:"id"`
@@ -21,7 +23,7 @@ type DefaultClaims struct {
 
 func NewDefaultClaims(id uuid.UUID, role, name string) Claims {
 	issuedAt := time.Now()
-	expiresAt := issuedAt.Add(TIME_LIVE_TOKEN)
+	expiresAt := issuedAt.Add(config.TIME_LIVE_ACCESS_TOKEN)
 
 	return &DefaultClaims{
 		ID:   id,
@@ -30,7 +32,7 @@ func NewDefaultClaims(id uuid.UUID, role, name string) Claims {
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(issuedAt),  // Время выдачи
 			ExpiresAt: jwt.NewNumericDate(expiresAt), // Срок действия: токен станет невалидным через 15 минут
-			Issuer:    HOST_SITE,                     // Кто выдал токен (рекомендуется заполнять)
+			Issuer:    config.HOST_SITE,              // Кто выдал токен (рекомендуется заполнять)
 		},
 		expiresIn: int(expiresAt.Sub(issuedAt).Seconds()),
 	}

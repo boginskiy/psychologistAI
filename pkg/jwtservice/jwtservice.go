@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -19,7 +20,7 @@ func (s *JWTService) GenerateToken(claims Claims) (string, error) {
 	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Подписываем токен нашим секретным ключом
-	key := []byte(JWT_SECRET_KEY)
+	key := []byte(config.JWT_SECRET_KEY)
 
 	signedToken, err := newToken.SignedString(key)
 	if err != nil {
@@ -34,7 +35,7 @@ func (s *JWTService) CheckAndParseToken(tokenStr string, claims Claims) (Claims,
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return JWT_SECRET_KEY, nil
+		return config.JWT_SECRET_KEY, nil
 	})
 
 	if err != nil {
