@@ -79,11 +79,15 @@ func TakeRealUserIP(r *http.Request) string {
 	return host
 }
 
-func TakeInfoAboutUserAgent(r *http.Request) *models.DeviceInfo {
-	userAgent := useragent.Parse(r.Header.Get("User-Agent"))
+func TakeUserAgent(r *http.Request) string {
+	return r.Header.Get("User-Agent")
+}
+
+func TakeDeviceInfo(r *http.Request) *models.DeviceInfo {
+	ua := useragent.Parse(r.Header.Get("User-Agent"))
 	return &models.DeviceInfo{
-		OS:      userAgent.OS,
-		Browser: userAgent.Name,
-		Device:  userAgent.Device,
+		OS:      ua.OS,
+		Browser: ua.Name,
+		Device:  ua.Device,
 	}
 }

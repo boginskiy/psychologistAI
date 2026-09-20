@@ -8,7 +8,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/errs/server"
 	"github.com/boginskiy/psychologistAI/internal/errs/users"
-	models "github.com/boginskiy/psychologistAI/internal/models/users"
+	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
@@ -42,7 +42,7 @@ func NewUserServ(
 // TODO. Слабое место для атак методом перебора.
 func (s *UserServ) Verification(ctx context.Context, token string) (*models.User, error) {
 	// Take user from DB
-	userDomain, err := s.UserRepo.GetItem(hashpass.CreateBytesHashSHA256(token))
+	userDomain, err := s.UserRepo.ReadByToken(hashpass.CreateBytesHashSHA256(token))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", users.ErrLinkVerification, err)
 	}
@@ -110,7 +110,7 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*mod
 	}
 
 	// Save user in DB
-	err = s.UserRepo.SaveItem(userDomain)
+	err = s.UserRepo.Create(userDomain)
 	if err != nil {
 		// TODО, пока отправляем ошибку сервера, но в целом у пользователя может быть не уникальный email
 		// и тогда ему надо что то передать.

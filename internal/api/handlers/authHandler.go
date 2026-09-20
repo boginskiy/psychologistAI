@@ -8,13 +8,13 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs/server"
 	"github.com/boginskiy/psychologistAI/internal/errs/users"
 	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
-	"github.com/boginskiy/psychologistAI/pkg/request"
 	"github.com/go-chi/chi"
 )
 
@@ -78,10 +78,8 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// // Take context (Binding). Берем Реальный IP пользователя.
-	// loginUser.IP = request.TakeRealUserIP(r)
-	// // Берем инфо с User-Agent. Info: OS, Browser, Device
-	// loginUser.UserAgent = request.TakeInfoAboutUserAgent(r)
+	loginUser.IP = request.TakeRealUserIP(r)
+	loginUser.UserAgent = request.TakeUserAgent(r)
 
 	// Service
 	token, err := h.AuthService.Login(r.Context(), loginUser)
@@ -116,8 +114,8 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cookies
-	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, token.Access)
-	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.Refresh)
+	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, token.AccessToken)
+	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.RefreshToken)
 
 	if err1 != nil || err2 != nil {
 		// + Logger full error
@@ -135,8 +133,6 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 // TODO:
 // Проверка в Мидлвари JWT токена
-// Разные сценарии
-// Как отправляется куки с access токеном и как будет отправляться с refresh
 
 // Logout
 // 3. Ротация и отзыв (Revocation) Так как JWT сам по себе живет своей жизнью до истечения срока,

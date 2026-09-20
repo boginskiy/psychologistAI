@@ -29,21 +29,4 @@ const (
 	// Verification Token
 	LENGTH_VARIFICATION_TOKEN    = 32
 	LIVE_TIME_VARIFICATION_TOKEN = 15 // Minute
-
-	// // Refresh Token
-	// LIVE_TIME_REFRESH_TOKEN = 10080 // Minute
-	// LENGTH_SALT             = 16
 )
-
-// type Conf struct {
-// }
-
-// func GetSecretKeyAccessToken() string {
-// 	return SECRET_KEY_JWT_ACCESS_TOKEN
-// }
-// func GetSecretKeyRefreshToken() string {
-// 	return SECRET_KEY_JWT_REFRESH_TOKEN
-// }
-
-// GetTimeLiveToken() int
-// GetHostName() string

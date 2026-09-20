@@ -28,18 +28,18 @@ type User struct {
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty" db:"last_activity_at"`
 	DeletedAt      *time.Time `json:"-" db:"deleted_at"` // soft delete
 
-	// Верификации пользователя
+	// Верификации пользователя.Need Table
 	HashVerifToken       []byte     `json:"hash_verif_token" db:"hash_verif_token"`
 	ExpiresAtVerifToken  *time.Time `json:"expires_at_verif_token" db:"expires_at_verif_token"`
 	VerifiedAtVerifToken *time.Time `json:"verified_at_verif_token" db:"verified_at_verif_token"`
 	EmailVerified        bool       `json:"email_verified" db:"email_verified"`
 	Attempts             int        `json:"attempts" db:"attempts"`
 
-	// Аутентификация пользователя
-	HashRefreshToken      []byte     `json:"hash_refresh_token" db:"hash_refresh_token"`
-	Salt                  []byte     `json:"salt" db:"salt"`
-	ExpiresAtRefreshToken *time.Time `json:"expires_at_refresh_token" db:"expires_at_refresh_token"`
-	DeviceInfo            DeviceInfo `json:"device_info" db:"device_info"`
+	// // Аутентификация пользователя. Need Table
+	// HashRefreshToken      []byte     `json:"hash_refresh_token" db:"hash_refresh_token"`
+	// Salt                  []byte     `json:"salt" db:"salt"`
+	// ExpiresAtRefreshToken *time.Time `json:"expires_at_refresh_token" db:"expires_at_refresh_token"`
+	// DeviceInfo            DeviceInfo `json:"device_info" db:"device_info"`
 }
 
 func NewUser(createUser *dto.CreateUser) (*User, error) {

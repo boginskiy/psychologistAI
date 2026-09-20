@@ -10,10 +10,10 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs/server"
 	"github.com/boginskiy/psychologistAI/internal/errs/users"
-	"github.com/boginskiy/psychologistAI/internal/models/responses"
+	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 
-	"github.com/boginskiy/psychologistAI/pkg/request"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/go-chi/chi"
 )
 
@@ -53,7 +53,7 @@ func (h *UserHandler) Registration(r chi.Router) {
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &responses.InfoResponse{}
+	infoResponse := &response.InfoResponse{}
 	token := chi.URLParam(r, Token)
 
 	_, err := h.UserService.Verification(r.Context(), token)
@@ -86,7 +86,7 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 
 // Убрать из сервиса подготовку user Response и перенести ее сюда
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &responses.InfoResponse{}
+	infoResponse := &response.InfoResponse{}
 	createUser := &dto.CreateUser{}
 
 	_, err := request.ReadAllRequestBody(r, createUser)

@@ -17,10 +17,11 @@ import (
 const AttemptsCnt = 5
 
 type AuthServ struct {
-	Validater  Validater
-	Notifier   Notifier
-	UserRepo   repository.UserRepo
-	JWTManager jwtservice.JWTManager
+	Validater   Validater
+	Notifier    Notifier
+	UserRepo    repository.UserRepo
+	SessionRepo repository.SessionRepo
+	JWTManager  jwtservice.JWTManager
 }
 
 func NewAuthServ(
@@ -28,6 +29,7 @@ func NewAuthServ(
 	validater Validater,
 	notifier Notifier,
 	userRepo repository.UserRepo,
+	SessionRepo repository.SessionRepo,
 	jwtManager jwtservice.JWTManager,
 ) *AuthServ {
 	return &AuthServ{
@@ -38,14 +40,14 @@ func NewAuthServ(
 	}
 }
 
-func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*models.Token, error) {
+func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*dto.Token, error) {
 
 	return nil, nil
 }
 
-func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error) {
+func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.TokenPair, error) {
 	// Check user
-	userDomain, err := s.UserRepo.GetItem2(loginUser.Email)
+	userDomain, err := s.UserRepo.ReadByEmail(loginUser.Email)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
 	}
@@ -66,49 +68,32 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*models
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
 		}
-		s.UserRepo.UpdateItem(userDomain)               // Update user: only attempts
+		s.UserRepo.UpdateItem(userDomain)               // Update user
 		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
 		return nil, users.ErrVerification
 	}
 
-	// JWT. Generation Access Token
-	// claim := jwtservice.NewDefaultClaims(
-	// 	userDomain.ID,
-	// 	userDomain.Role,
-	// 	userDomain.Name)
+	// Create Tokens and Session
+	tokenPair, err := s.createTokenPair(userDomain)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+	}
 
-	// jwtservice.ClaimConfig
-	// config ClaimConfig, refreshTokenUser *RefreshTokenUser
-
-	config
-
-	refreshTokenUser := jwtservice.NewRefreshTokenUser(userDomain.ID, userDomain.Name, userDomain.Role)
-
-	refreshTokenClaim := jwtservice.NewRefreshTokenClaim(
+	newSession := models.NewSession(
 		userDomain.ID,
-		userDomain.Role,
-		userDomain.Name)
+		tokenPair.SessionID,
+		tokenPair.RefreshToken,
+		loginUser.IP,
+		loginUser.UserAgent,
+		tokenPair.SessionExp,
+	)
 
-	accessToken, err := s.JWTManager.GenerateToken(claim)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
-	}
+	s.SessionRepo.Create(newSession)
 
-	// Generation Refresh Token
-	refreshToken, err := userDomain.UpdateRefreshToken(loginUser.IP, loginUser.UserAgent)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
-	}
-
-	// Update user
-	s.UserRepo.UpdateItem(userDomain)
-
-	// Create token
-	token := models.NewToken(accessToken, refreshToken, claim.GetExpiresIn())
-	return token, nil
+	return tokenPair, nil
 }
 
-func (s *AuthServ) generationRefreshToken(user *models.User) {
+func (s *AuthServ) createTokenPair(user *models.User) (*dto.TokenPair, error) {
 	configRefresh := jwtservice.NewJWTConfig(
 		config.TIME_LIVE_JWT_REFRESH_TOKEN,
 		config.SECRET_KEY_JWT_REFRESH_TOKEN,
@@ -125,12 +110,19 @@ func (s *AuthServ) generationRefreshToken(user *models.User) {
 	refreshClaim := jwtservice.NewRefreshTokenClaim(configRefresh, tokenUser)
 	accessClaim := jwtservice.NewAccessTokenClaim(configAccess, refreshClaim)
 
-	s.JWTManager.GenerateToken(configRefresh, refreshClaim)
-	s.JWTManager.GenerateToken(configAccess, accessClaim)
+	refToken, err1 := s.JWTManager.GenerateToken(configRefresh, refreshClaim)
+	accToken, err2 := s.JWTManager.GenerateToken(configAccess, accessClaim)
 
-	// TODO... Что дальше ???
-	// Собрать токен юзер, возможно поменять вjwt дублирующеее название! Посомтри !
+	if err1 != nil || err2 != nil {
+		return nil, fmt.Errorf("%w:%w:%w", server.ErrServer, err1, err2)
+	}
 
+	return &dto.TokenPair{
+		AccessToken:  accToken,
+		RefreshToken: refToken,
+		SessionID:    refreshClaim.ID,
+		SessionExp:   refreshClaim.ExpiresAt.Time,
+	}, nil
 }
 
 // HOST_SITE = "psychologistAI.com"
@@ -171,3 +163,12 @@ func (s *AuthServ) generationRefreshToken(user *models.User) {
 // Access Token, но вы тем временем по кнопке «Выйти на всех устройствах» удалили
 // соответствующую строку сессии из Redis/БД, проверка SessionID провалится, и доступ
 // будет закрыт немедленно.
+
+// // Внутри вашего BFF при логине:
+// fingerprint := r.Header.Get("User-Agent") + ":" + getClientIP(r)
+// saveSessionToDB(Session{
+//     UserID:      user.ID,
+//     RefreshHash: hashSHA256(refreshTokenString),
+//     Fingerprint: fingerprint,
+//     ExpiresAt:   time.Now().Add(30 * 24 * time.Hour),
+// })

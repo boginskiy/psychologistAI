@@ -5,7 +5,7 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/db"
 	"github.com/boginskiy/psychologistAI/internal/db/mapDB"
-	models "github.com/boginskiy/psychologistAI/internal/models/users"
+	models "github.com/boginskiy/psychologistAI/internal/models/user"
 )
 
 type UserRepo struct {
@@ -18,7 +18,7 @@ func NewUserRepo() *UserRepo {
 	}
 }
 
-func (r *UserRepo) GetItem2(email string) (*models.User, error) {
+func (r *UserRepo) ReadByEmail(email string) (*models.User, error) {
 	userTb := r.DB.GetUserTable()
 	for e, user := range userTb {
 		if e == email {
@@ -28,7 +28,7 @@ func (r *UserRepo) GetItem2(email string) (*models.User, error) {
 	return nil, fmt.Errorf("user was not found")
 }
 
-func (r *UserRepo) GetItem(hashToken []byte) (*models.User, error) {
+func (r *UserRepo) ReadByToken(hashToken []byte) (*models.User, error) {
 	userTb := r.DB.GetUserTable()
 	for _, user := range userTb {
 
@@ -49,7 +49,7 @@ func (r *UserRepo) UpdateItem(user *models.User) {
 	}
 }
 
-func (r *UserRepo) SaveItem(user *models.User) error {
+func (r *UserRepo) Create(user *models.User) error {
 	userTb := r.DB.GetUserTable()
 
 	_, ok := userTb[user.Email]
