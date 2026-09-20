@@ -95,18 +95,21 @@ func (a *App) initHandlers(ctx context.Context) error {
 	userRepo := userrepo.NewUserRepo()
 
 	// Services
+	authService := service.NewAuthServ(ctx, validater, notifier, userRepo, jwtManager)
 	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
 
 	// Handlers
-	userHandler := handlers.NewUserHandler("/user", userService, response, a.Cooker)
+	authHandler := handlers.NewAuthHandler("/auth", authService, response, a.Cooker)
+	userHandler := handlers.NewUserHandler("/api/v1/user", userService, response)
 
 	// Router
 	a.Router.RegisterRoutes(userHandler)
+	a.Router.RegisterRoutes(authHandler)
 	return nil
 }
 
 func (a *App) initRouter(ctx context.Context) error {
-	a.Router = router.NewRouterChi(ctx, "/api/v1")
+	a.Router = router.NewRouterChi(ctx, "")
 	return nil
 }
 

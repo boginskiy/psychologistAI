@@ -1,6 +1,6 @@
-package responses
+package response
 
-import models "github.com/boginskiy/psychologistAI/internal/models/users"
+import models "github.com/boginskiy/psychologistAI/internal/models/user"
 
 const TokenType = "bearer"
 

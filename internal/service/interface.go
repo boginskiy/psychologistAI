@@ -15,8 +15,12 @@ type Notifier interface {
 	Send(email, token string)
 }
 
+type AuthService interface {
+	Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error)
+	Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*models.Token, error)
+}
+
 type UserService interface {
 	Create(ctx context.Context, user *dto.CreateUser) (*models.User, error)
 	Verification(ctx context.Context, token string) (*models.User, error)
-	Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error)
 }

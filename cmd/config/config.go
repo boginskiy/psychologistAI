@@ -1,11 +1,15 @@
 package config
 
 const (
+	// Server
+	HOST_NAME = "psychologistAI.com"
 
-	// Access Token / JWT
-	TIME_LIVE_ACCESS_TOKEN = 15 // Minute
-	HOST_SITE              = "psychologistAI.com"
-	JWT_SECRET_KEY         = "cjlsjdc3r483ucdhcyeruf9ehrc"
+	// Tokens-JWT
+	TIME_LIVE_JWT_ACCESS_TOKEN  = 15 // Minute
+	SECRET_KEY_JWT_ACCESS_TOKEN = "cjlsjdc3r483ucdhcyeruf9ehrc"
+
+	TIME_LIVE_JWT_REFRESH_TOKEN  = 10080 // Minute
+	SECRET_KEY_JWT_REFRESH_TOKEN = "acsdcfwecwX2343FCSDBJHXSDJ"
 
 	// Cookies
 	COOKIE_NAME_ACCESS_TOKEN      = "access_token"
@@ -18,7 +22,7 @@ const (
 	COOKIE_NAME_REFRESH_TOKEN      = "refresh_token"
 	COOKIE_EXPIRES_REFRESH_TOKEN   = 1440  // Minute
 	COOKIE_MAX_AGE_REFRESH_TOKEN   = 86400 // Second
-	COOKIE_PATH_REFRESH_TOKEN      = "/"
+	COOKIE_PATH_REFRESH_TOKEN      = "/auth"
 	COOKIE_HTTP_ONLY_REFRESH_TOKEN = false
 	COOKIE_SECURE_REFRESH_TOKEN    = false
 
@@ -26,7 +30,20 @@ const (
 	LENGTH_VARIFICATION_TOKEN    = 32
 	LIVE_TIME_VARIFICATION_TOKEN = 15 // Minute
 
-	// Refresh Token
-	LIVE_TIME_REFRESH_TOKEN = 10080 // Minute
-	LENGTH_SALT             = 16
+	// // Refresh Token
+	// LIVE_TIME_REFRESH_TOKEN = 10080 // Minute
+	// LENGTH_SALT             = 16
 )
+
+// type Conf struct {
+// }
+
+// func GetSecretKeyAccessToken() string {
+// 	return SECRET_KEY_JWT_ACCESS_TOKEN
+// }
+// func GetSecretKeyRefreshToken() string {
+// 	return SECRET_KEY_JWT_REFRESH_TOKEN
+// }
+
+// GetTimeLiveToken() int
+// GetHostName() string

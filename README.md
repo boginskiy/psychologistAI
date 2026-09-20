@@ -2,6 +2,19 @@
 Psychological assistance service
 
 
+       [ iOS / Android ]          [ Браузер (SPA React/Vue) ]
+                 |                            |
+                 +-----------+ ---------------+
+                             |
+                  [ Ваш Go Backend (BFF Layer) ]
+              (Единая точка входа, роутинг, авторизация)
+                             |
+           +-----------------+-----------------+
+           |                                   |
+[ Microservice Auth/User ]        [ Microservice Payments ]
+(Логины, роли, заметки)            (Заказы, чеки, СБП)
+           |                                   |
+    [ PostgreSQL DB ]                   [ Payment Gateway ]
 
 
 
@@ -106,6 +119,11 @@ https://support.maxmind.com/knowledge-base/articles/create-a-maxmind-account
 
 
 ### TODO:
+
+// user_IP
+// user Agent
+// Проверять устройство и сеть нужно, но хранить эталонные значения следует вне 
+// самодостаточного токена — например, в базе данных сессий или кэше (Redis).
 
 // Сценарий:
 // Предусмотреть кнопку "выйти"

@@ -9,14 +9,14 @@ import (
 )
 
 type RouterChi struct {
-	mux     *chi.Mux
-	version string
+	mux  *chi.Mux
+	home string
 }
 
-func NewRouterChi(ctx context.Context, vers string) *RouterChi {
+func NewRouterChi(ctx context.Context, home string) *RouterChi {
 	return &RouterChi{
-		mux:     chi.NewRouter(),
-		version: vers,
+		mux:  chi.NewRouter(),
+		home: home,
 	}
 }
 
@@ -25,7 +25,7 @@ func (c *RouterChi) Run() http.Handler {
 }
 
 func (c *RouterChi) RegisterRoutes(handlers ...handlers.Registrar) http.Handler {
-	c.mux.Route(c.version, func(r chi.Router) {
+	c.mux.Route(c.home, func(r chi.Router) {
 
 		// Добавляем middleware для всей API
 		//r.Use(middleware.Logger)

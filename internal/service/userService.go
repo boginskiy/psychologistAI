@@ -15,7 +15,7 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
 
-const AttemptsCnt = 5
+// const AttemptsCnt = 5
 
 type UserServ struct {
 	Validater  Validater
@@ -37,59 +37,6 @@ func NewUserServ(
 		UserRepo:   userRepo,
 		JWTManager: jwtManager,
 	}
-}
-
-func (s *UserServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error) {
-	// Check user
-	userDomain, err := s.UserRepo.GetItem2(loginUser.Email)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
-	}
-
-	// Check password
-	err = hashpass.CheckBcryptPassword(userDomain.HashPassword, loginUser.Password)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
-	}
-
-	// Verification
-	if !userDomain.CheckVerification() {
-		if userDomain.Attempts >= AttemptsCnt {
-			return nil, users.ErrAttemptsVerification
-		}
-		userDomain.Attempts += 1
-		verificToken, err := userDomain.UpdateVerificationToken()
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
-		}
-		s.UserRepo.UpdateItem(userDomain)               // Update user
-		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
-		return nil, users.ErrVerification
-	}
-
-	// JWT. Generation Access Token
-	claim := jwtservice.NewDefaultClaims(
-		userDomain.ID,
-		userDomain.Role,
-		userDomain.Name)
-
-	accessToken, err := s.JWTManager.GenerateToken(claim)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
-	}
-
-	// Generation Refresh Token
-	refreshToken, err := userDomain.UpdateRefreshToken(loginUser.IP, loginUser.UserAgent)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
-	}
-
-	// Update user
-	s.UserRepo.UpdateItem(userDomain)
-
-	// Create token
-	token := models.NewToken(accessToken, refreshToken, claim.GetExpiresIn())
-	return token, nil
 }
 
 // TODO. Слабое место для атак методом перебора.

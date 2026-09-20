@@ -1,19 +1,22 @@
 package jwtservice
 
-import (
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
-)
+import "github.com/golang-jwt/jwt/v4"
 
-type Claims interface {
-	jwt.Claims
-	GetID() uuid.UUID
-	GetRole() string
-	GetName() string
-	GetExpiresIn() int
+type TokenConfig interface {
+	GetTimeLiveToken() int
+	GetSecretKeyForToken() string
+}
+
+type HostConfig interface {
+	GetHostName() string
+}
+
+type JWTConfig interface {
+	TokenConfig
+	HostConfig
 }
 
 type JWTManager interface {
-	GenerateToken(claims Claims) (string, error)
-	CheckAndParseToken(tokenStr string, claims Claims) (Claims, error)
+	GenerateToken(JWTConfig, jwt.Claims) (string, error)
+	CheckAndParseToken(JWTConfig, string, jwt.Claims) (jwt.Claims, error)
 }

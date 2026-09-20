@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/mileusna/useragent"
 )
 
@@ -78,10 +79,11 @@ func TakeRealUserIP(r *http.Request) string {
 	return host
 }
 
-func TakeInfoAboutUserAgent(r *http.Request) string {
+func TakeInfoAboutUserAgent(r *http.Request) *models.DeviceInfo {
 	userAgent := useragent.Parse(r.Header.Get("User-Agent"))
-
-	return fmt.Sprintf(
-		"OS:%s;Browser:%s;Device:%s",
-		userAgent.OS, userAgent.Name, userAgent.Device)
+	return &models.DeviceInfo{
+		OS:      userAgent.OS,
+		Browser: userAgent.Name,
+		Device:  userAgent.Device,
+	}
 }

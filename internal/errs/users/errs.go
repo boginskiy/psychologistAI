@@ -9,6 +9,9 @@ var (
 	ErrLinkVerification     = errors.New("link is incorrect, please try again")
 	ErrRepeatVerification   = errors.New("client has passed verification")
 
+	// Auth
+	ErrAuth = errors.New("authentication error, need to log in")
+
 	// Credentials
 	ErrInvalidCredentials = errors.New("invalid email or password")
 )

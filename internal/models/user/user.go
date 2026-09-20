@@ -20,7 +20,7 @@ type User struct {
 	Phone        string    `json:"phone,omitempty" db:"phone"`
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	IsAdmin      bool      `json:"is_admin" db:"is_admin"`
-	Role         string    `json:"role" db:"role"` // user, admin, moderator
+	Role         []string  `json:"role" db:"role"` // user, admin, moderator
 
 	// Временные метки
 	CreatedAt      *time.Time `json:"created_at" db:"created_at"`
@@ -56,7 +56,7 @@ func NewUser(createUser *dto.CreateUser) (*User, error) {
 		HashPassword:         hashPassword,
 		Name:                 createUser.Name,
 		Phone:                createUser.Phone,
-		Role:                 "user",
+		Role:                 []string{"user"},
 		CreatedAt:            &timeNow,
 		UpdatedAt:            &timeNow,
 		VerifiedAtVerifToken: nil,
@@ -85,10 +85,10 @@ func (u *User) CompareHash(hashToken []byte) bool {
 }
 
 func (u *User) UpdateRefreshToken(ip, userAgent string) (string, error) {
-	err := u.updateSalt()
-	if err != nil {
-		return "", err
-	}
+	// err := u.updateSalt()
+	// if err != nil {
+	// 	return "", err
+	// }
 
 	// TODO? Зашить в токен данные! Например ID пользователя
 
@@ -110,14 +110,14 @@ func (u *User) updateRefreshExpiresAt() {
 	u.ExpiresAtRefreshToken = &refreshTokenExpiresAt
 }
 
-func (u *User) updateSalt() error {
-	salt, err := generators.GenerateRandomBytes(config.LENGTH_SALT)
-	if err != nil {
-		return err
-	}
-	u.Salt = salt
-	return nil
-}
+// func (u *User) updateSalt() error {
+// 	salt, err := generators.GenerateRandomBytes(config.LENGTH_SALT)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	u.Salt = salt
+// 	return nil
+// }
 
 // // VerifyRefreshToken проверяет входящий токен.
 // func VerifyRefreshToken(incomingToken string, storedSalt []byte, storedHash []byte) bool {

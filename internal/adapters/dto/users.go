@@ -13,7 +13,7 @@ type LoginUser struct {
 	Email     string `json:"email" db:"email" validate:"required,email"`
 	Password  string `json:"password" db:"password_hash"`
 	IP        string `json:"-" db:"user_ip"`
-	UserAgent string `json:"-" db:"user_ip"`
+	UserAgent string `json:"-" db:"user_agent"`
 }
 
 // UpdateUserRequest - DTO для обновления пользователя
