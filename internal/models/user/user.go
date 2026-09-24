@@ -2,7 +2,6 @@ package models
 
 import (
 	"crypto/subtle"
-	"fmt"
 	"time"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
@@ -83,50 +82,3 @@ func (u *User) UpdateVerificationToken() (string, error) {
 func (u *User) CompareHash(hashToken []byte) bool {
 	return subtle.ConstantTimeCompare(u.HashVerifToken, hashToken) == 1
 }
-
-func (u *User) UpdateRefreshToken(ip, userAgent string) (string, error) {
-	// err := u.updateSalt()
-	// if err != nil {
-	// 	return "", err
-	// }
-
-	// TODO? Зашить в токен данные! Например ID пользователя
-
-	token := generators.CreateUUIDv7ToString()
-	tokenFull := u.assembleFullToken(token, ip, userAgent)
-
-	u.HashRefreshToken = hashpass.CreateBytesHashSHA256WithSalt(u.Salt, tokenFull)
-	u.updateRefreshExpiresAt()
-
-	return token, nil
-}
-
-func (u *User) assembleFullToken(token, ip, userAgent string) string {
-	return fmt.Sprintf("%s:%s:%s", token, ip, userAgent)
-}
-
-func (u *User) updateRefreshExpiresAt() {
-	refreshTokenExpiresAt := time.Now().UTC().Add(config.LIVE_TIME_REFRESH_TOKEN)
-	u.ExpiresAtRefreshToken = &refreshTokenExpiresAt
-}
-
-// func (u *User) updateSalt() error {
-// 	salt, err := generators.GenerateRandomBytes(config.LENGTH_SALT)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	u.Salt = salt
-// 	return nil
-// }
-
-// // VerifyRefreshToken проверяет входящий токен.
-// func VerifyRefreshToken(incomingToken string, storedSalt []byte, storedHash []byte) bool {
-// 	hasher := sha256.New()
-// 	hasher.Write(storedSalt)
-// 	hasher.Write([]byte(incomingToken))
-// 	computedSum := hasher.Sum(nil)
-
-// 	// Используем ConstantTimeCompare, чтобы избежать атак по времени (timing attacks)
-// 	// Никогда не используйте просто == для сравнения хешей!
-// 	return subtle.ConstantTimeCompare(computedSum, storedHash) == 1
-// }

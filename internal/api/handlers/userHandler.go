@@ -8,8 +8,8 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
-	"github.com/boginskiy/psychologistAI/internal/errs/server"
-	"github.com/boginskiy/psychologistAI/internal/errs/users"
+	"github.com/boginskiy/psychologistAI/internal/errs"
+
 	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 
@@ -62,16 +62,16 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		// Verification
-		case errors.Is(err, users.ErrLinkVerification):
-			infoResponse.ErrorUpdate(users.ErrLinkVerification, http.StatusNotFound)
-		case errors.Is(err, users.ErrRepeatVerification):
-			infoResponse.ErrorUpdate(users.ErrRepeatVerification, http.StatusBadRequest)
-		case errors.Is(err, users.ErrAttemptsVerification):
-			infoResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
+		case errors.Is(err, errs.ErrLinkVerification):
+			infoResponse.ErrorUpdate(errs.ErrLinkVerification, http.StatusNotFound)
+		case errors.Is(err, errs.ErrRepeatVerification):
+			infoResponse.ErrorUpdate(errs.ErrRepeatVerification, http.StatusBadRequest)
+		case errors.Is(err, errs.ErrAttemptsVerification):
+			infoResponse.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, server.ErrServer):
-			infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, errs.ErrServer):
+			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
 			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
@@ -104,12 +104,12 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		// Credentials
-		case errors.Is(err, users.ErrInvalidCredentials):
-			infoResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
+		case errors.Is(err, errs.ErrInvalidCredentials):
+			infoResponse.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
 
 			// Server
-		case errors.Is(err, server.ErrServer):
-			infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
+		case errors.Is(err, errs.ErrServer):
+			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
 			infoResponse.ErrorUpdate(err, http.StatusBadRequest)

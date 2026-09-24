@@ -1,4 +1,4 @@
-package errors
+package errs
 
 type WrappedError struct {
 	err error

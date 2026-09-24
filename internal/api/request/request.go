@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/mileusna/useragent"
 )
 
@@ -83,11 +82,7 @@ func TakeUserAgent(r *http.Request) string {
 	return r.Header.Get("User-Agent")
 }
 
-func TakeDeviceInfo(r *http.Request) *models.DeviceInfo {
+func TakeDeviceInfo(r *http.Request) (os, browser, device string) {
 	ua := useragent.Parse(r.Header.Get("User-Agent"))
-	return &models.DeviceInfo{
-		OS:      ua.OS,
-		Browser: ua.Name,
-		Device:  ua.Device,
-	}
+	return ua.OS, ua.Name, ua.Device
 }

@@ -1,6 +1,9 @@
 package repository
 
-import models "github.com/boginskiy/psychologistAI/internal/models/user"
+import (
+	models "github.com/boginskiy/psychologistAI/internal/models/user"
+	"github.com/google/uuid"
+)
 
 type UserReader interface {
 	ReadByToken(token []byte) (*models.User, error)
@@ -22,14 +25,21 @@ type UserRepo interface {
 }
 
 // =============================
+type SessionReader interface {
+	Read(id string) (*models.Session, error)
+}
+
 type SessionCreater interface {
 	Create(session *models.Session) error
 }
 
 type SessionRepo interface {
 	// SessionUpdater
-	// SessionReader
+	SessionReader
 	SessionCreater
+
+	CancelSessions(userID uuid.UUID)
+	CancelSession(sessionID string)
 }
 
 type CommRepo interface {

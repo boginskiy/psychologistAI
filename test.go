@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net"
 	"time"
 
-	gomail "gopkg.in/mail.v2"
+	"github.com/oschwald/geoip2-golang"
 )
 
 const (
@@ -18,45 +20,23 @@ const (
 	TimeOut = 200 * time.Millisecond
 )
 
-func CreateMess(ToEmail, token string) *gomail.Message {
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", FromEmail)
-	msg.SetHeader("To", ToEmail)
-	msg.SetHeader("Subject", Subject)
-
-	// Ссылка
-	verifyLink := fmt.Sprintf("localhost:8080/api/v1/user/verify/%s", token)
-
-	// Текст письма с ссылкой для подтверждения
-	body := fmt.Sprintf(`
-    Здравствуйте!
-
-    Для подтверждения email перейдите по ссылке:
-    %s
-
-    Если вы не регистрировались на нашем сайте, проигнорируйте это письмо.
-
-    С уважением,
-    Команда проекта 'Psychologist AI'
-	`, verifyLink)
-
-	msg.SetBody("text/plain", body)
-	return msg
-}
-
 func main() {
 
-	dialer := gomail.NewDialer(
-		HostEmail,
-		PortEmail,
-		FromEmail,
-		Password,
-	)
+	db, err := geoip2.Open("GeoLite2-Country.mmdb")
+	if err != nil {
+		fmt.Println("не удалось открыть базу GeoIP")
+		// return false, errors.New("не удалось открыть базу GeoIP")
+	}
 
-	msg := CreateMess("1.boginskiy@mail.ru", "<<1323456789>>")
-	fmt.Println(msg)
+	ip := net.ParseIP("8.8.8.8")
 
-	err := dialer.DialAndSend(msg)
-	fmt.Println(err)
+	record, err := db.Country(ip)
 
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(record.Country.IsoCode)
+
+	// _ = db
 }

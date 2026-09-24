@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	"github.com/boginskiy/psychologistAI/internal/errs/server"
-	"github.com/boginskiy/psychologistAI/internal/errs/users"
+	"github.com/boginskiy/psychologistAI/internal/errs"
+	"github.com/boginskiy/psychologistAI/internal/security"
+
 	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
@@ -22,6 +24,7 @@ type AuthServ struct {
 	UserRepo    repository.UserRepo
 	SessionRepo repository.SessionRepo
 	JWTManager  jwtservice.JWTManager
+	GeoSecurity security.GeoSecurity
 }
 
 func NewAuthServ(
@@ -31,52 +34,131 @@ func NewAuthServ(
 	userRepo repository.UserRepo,
 	SessionRepo repository.SessionRepo,
 	jwtManager jwtservice.JWTManager,
+	geoSecurity security.GeoSecurity,
 ) *AuthServ {
 	return &AuthServ{
-		Validater:  validater,
-		Notifier:   notifier,
-		UserRepo:   userRepo,
-		JWTManager: jwtManager,
+		Validater:   validater,
+		Notifier:    notifier,
+		UserRepo:    userRepo,
+		JWTManager:  jwtManager,
+		GeoSecurity: geoSecurity,
 	}
 }
 
-func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*dto.Token, error) {
+func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*dto.TokenPair, error) {
+	// TODO
+	// В мидлваре проверим подпись токена, и сделаем парсинг данных.
+	// Через контекст можно передать эти данные сюда на дальнейшую обработку
+
+	// Допустим тут у нас есть данные распарсенные с Refresh токена
+	dataFromRefresh := jwtservice.RefreshTokenClaim{}
+
+	// =================================================================================
+
+	// Take last active session for current token
+	lastActiveSession, err := s.SessionRepo.Read(dataFromRefresh.ID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errs.ErrSession, err)
+	}
+
+	// Check RefreshTokenHash.
+	if !hashpass.CheckHashedTokenWithTokenSHA256(lastActiveSession.RefreshTokenHash, refreshTokenReq.Token) {
+		return nil, errs.ErrCompareToken
+	}
+
+	// Check ExpiresAt. Сессия валидна до N время после просрочена.
+	if lastActiveSession.ExpiresAt.Before(time.Now().UTC()) {
+		return nil, errs.ErrTimeLiveSession
+	}
+
+	// Check RevokedAt. Если nil — сессия активна. Если заполнена — токен уже был использован.
+	// И возможно, тот кто использовал токен - это хакер, или текущий пользователь это хакер
+	// Данная атака называется Token Reuse Attack - хакерская атака повторного использования токена
+
+	if lastActiveSession.RevokedAt != nil {
+		// Прерываем все сессии у этого пользователя. Revoked == time.Now()
+		// Данные сохраняем для анализа. Срок хранения 1 сутки.
+		// + logger
+		s.SessionRepo.CancelSessions(lastActiveSession.UserID)
+		return nil, errs.ErrUsingToken
+	}
+
+	if !s.isItRealUser(lastActiveSession, refreshTokenReq) {
+		// Если пользователь не прошел проверку лигитимности, прерываем все сессии.
+		// + logger
+		s.SessionRepo.CancelSessions(lastActiveSession.UserID)
+		return nil, errs.ErrLegitimacyUser
+	}
+
+	// Выпуск новой пары токенов
+
+	// Меняем статус сессии
 
 	return nil, nil
 }
+
+// isItRealUser - Финальная проверка пользователя на лигитимность.
+func (s *AuthServ) isItRealUser(session *models.Session, refreshTokenReq *dto.RefreshTokenRequest) bool {
+	isTheSameDevice := session.DeviceInfo == refreshTokenReq.Device
+
+	// Разные IP и устройства.
+	if session.AddressIP != refreshTokenReq.IP && !isTheSameDevice {
+		return false
+	}
+	// Другая страна (например RU -> BR)
+	if s.GeoSecurity.IsCountryChanged(session.AddressIP, refreshTokenReq.IP) && !isTheSameDevice {
+		return false
+	}
+	// Смена провайдера
+	if s.GeoSecurity.IsProviderChanged(session.AddressIP, refreshTokenReq.IP) && !isTheSameDevice {
+		return false
+	}
+	return true
+}
+
+// TODO...
+// 1. Если есть только 1 историческая сессия и она скомпроментирована, т.е. от этой сессии уже выдан новый refresh token хакеру,
+//    то нам не с чем будет сопоставить текущие данные пользователя для подтверждения лигитимности.
+//
+// Действия:
+// 	  Проверяем время создания предыдущей сессии с time.Now,
+//    если ( time.Now - timeCreatedSession ) < 15 sec, тогда с высокой вероятностью, перед нами хакер
+//    дополнительно можно проверить его 'IP' и 'UserAgent'
+
+// SELECT * FROM sessions WHERE user_id = X AND is_active = true;
 
 func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.TokenPair, error) {
 	// Check user
 	userDomain, err := s.UserRepo.ReadByEmail(loginUser.Email)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Check password
 	err = hashpass.CheckBcryptPassword(userDomain.HashPassword, loginUser.Password)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Verification
 	if !userDomain.CheckVerification() {
 		if userDomain.Attempts >= AttemptsCnt {
-			return nil, users.ErrAttemptsVerification
+			return nil, errs.ErrAttemptsVerification
 		}
 		userDomain.Attempts += 1
 		verificToken, err := userDomain.UpdateVerificationToken()
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
 		s.UserRepo.UpdateItem(userDomain)               // Update user
 		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
-		return nil, users.ErrVerification
+		return nil, errs.ErrVerification
 	}
 
 	// Create Tokens and Session
 	tokenPair, err := s.createTokenPair(userDomain)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	newSession := models.NewSession(
@@ -114,7 +196,7 @@ func (s *AuthServ) createTokenPair(user *models.User) (*dto.TokenPair, error) {
 	accToken, err2 := s.JWTManager.GenerateToken(configAccess, accessClaim)
 
 	if err1 != nil || err2 != nil {
-		return nil, fmt.Errorf("%w:%w:%w", server.ErrServer, err1, err2)
+		return nil, fmt.Errorf("%w:%w:%w", errs.ErrServer, err1, err2)
 	}
 
 	return &dto.TokenPair{
@@ -124,51 +206,3 @@ func (s *AuthServ) createTokenPair(user *models.User) (*dto.TokenPair, error) {
 		SessionExp:   refreshClaim.ExpiresAt.Time,
 	}, nil
 }
-
-// HOST_SITE = "psychologistAI.com"
-
-// 	// Tokens-JWT
-// 	TIME_LIVE_JWT_ACCESS_TOKEN  = 15 // Minute
-// 	SECRET_KEY_JWT_ACCESS_TOKEN = "cjlsjdc3r483ucdhcyeruf9ehrc"
-
-// 	TIME_LIVE_JWT_REFRESH_TOKEN  = 10080 // Minute
-// 	SECRET_KEY_JWT_REFRESH_TOKEN = "acsdcfwecwX2343FCSDBJHXSDJ"
-
-// Также при каждой выдаче новой пары токенов старый access token аннулируется временем жизни,
-// а refresh token должен ротироваться (выпускать новый jti).
-
-// Ротация Refresh Token (Обязательно): При каждом использовании старого RT выдавайте совершенно новый
-// RT, а старый немедленно аннулируйте (заносите его jti в базу отозванных токенов). Это защищает от кражи:
-// если злоумышленник перехватил ваш RT и попытался им воспользоваться, настоящий пользователь в этот же
-// момент получит ошибку «токен недействителен» при следующем автоматическом рефреше и поймет, что аккаунт
-// под угрозой.
-
-// Поле jti: Добавляйте в оба токена уникальный идентификатор (JWT ID). Для AT он помогает отслеживать
-// активные сессии, а для RT является первичным ключом в таблице отзыва.
-
-// Разные секреты: Никогда не подписывайте AT и RT одним и тем же ключом. Утечка ключа для AT (который
-// гулятирует по всем клиентам) не должна позволять выпускать вечные Refresh-токены.
-
-// Revocation list (Denylist): Поскольку JWT самодостаточны, единственный способ их отозвать —
-// хранить идентификаторы (jti) отозванных refresh-токенов в быстром хранилище вроде Redis с TTL до
-// даты истечения самого токена. Перед выдачей новой пары всегда проверяйте приходящий RT по этому
-// списку.
-
-// !!!
-// SessionID (или LinkedJTI): Это ваше главное оружие против кражи токенов. Здесь хранится
-// значение jti (уникальный ID) того самого refresh token, которым был выдан данный access token.
-
-// Зачем: Когда приходит запрос с Access Token, вы проверяете: «А существует ли еще в
-// моей таблице сессий активный Refresh Token с таким jti?». Если злоумышленник украл
-// Access Token, но вы тем временем по кнопке «Выйти на всех устройствах» удалили
-// соответствующую строку сессии из Redis/БД, проверка SessionID провалится, и доступ
-// будет закрыт немедленно.
-
-// // Внутри вашего BFF при логине:
-// fingerprint := r.Header.Get("User-Agent") + ":" + getClientIP(r)
-// saveSessionToDB(Session{
-//     UserID:      user.ID,
-//     RefreshHash: hashSHA256(refreshTokenString),
-//     Fingerprint: fingerprint,
-//     ExpiresAt:   time.Now().Add(30 * 24 * time.Hour),
-// })

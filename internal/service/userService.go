@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	"github.com/boginskiy/psychologistAI/internal/errs/server"
-	"github.com/boginskiy/psychologistAI/internal/errs/users"
+	"github.com/boginskiy/psychologistAI/internal/errs"
+
 	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 
@@ -44,17 +44,17 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*models.User
 	// Take user from DB
 	userDomain, err := s.UserRepo.ReadByToken(hashpass.CreateBytesHashSHA256(token))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrLinkVerification, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrLinkVerification, err)
 	}
 
 	// Проверка, что EmailVerified == true, т.е. верификация случилась
 	if userDomain.EmailVerified == true {
-		return nil, users.ErrRepeatVerification
+		return nil, errs.ErrRepeatVerification
 	}
 
 	// Проверка количеств попыток, данные для верификации.
 	if userDomain.Attempts >= AttemptsCnt {
-		return nil, users.ErrAttemptsVerification
+		return nil, errs.ErrAttemptsVerification
 	}
 	userDomain.Attempts += 1
 
@@ -62,12 +62,12 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*models.User
 	if userDomain.ExpiresAtVerifToken.Before(time.Now().UTC()) {
 		verificToken, err := userDomain.UpdateVerificationToken()
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
 		s.UserRepo.UpdateItem(userDomain)               // Update user
 		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
 
-		return nil, users.ErrVerification
+		return nil, errs.ErrVerification
 	}
 
 	// User update after good verification
@@ -88,25 +88,25 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*mod
 	// Валидация Email
 	err := s.Validater.CheckNotEmptyStrField("email", createUser.Email)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Валидация Password
 	err = s.Validater.CheckNotEmptyStrField("password", createUser.Password)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", users.ErrInvalidCredentials, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrInvalidCredentials, err)
 	}
 
 	// Create domain user
 	userDomain, err := models.NewUser(createUser)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	// Create token
 	verificToken, err := userDomain.UpdateVerificationToken()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	// Save user in DB
@@ -114,7 +114,7 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*mod
 	if err != nil {
 		// TODО, пока отправляем ошибку сервера, но в целом у пользователя может быть не уникальный email
 		// и тогда ему надо что то передать.
-		return nil, fmt.Errorf("%w: %w", server.ErrServer, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	// Send email to ErrServeruser

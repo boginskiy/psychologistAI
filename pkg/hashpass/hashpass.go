@@ -28,9 +28,13 @@ func CreateBytesHashSHA256(token string) []byte {
 	return hasher.Sum(nil)
 }
 
-func CheckHashSHA256(hashedToken []byte, token string) bool {
+func CheckHashedTokenWithTokenSHA256(hashedToken []byte, token string) bool {
 	return subtle.ConstantTimeCompare(CreateBytesHashSHA256(token), hashedToken) == 1
 }
+
+// func CheckHashStringSHA256(hashedToken, token string) bool {
+// 	return subtle.ConstantTimeCompare(CreateBytesHashSHA256(token), []byte(hashedToken)) == 1
+// }
 
 func CheckHash2SHA256(hashedToken []byte, hashToken []byte) bool {
 	return subtle.ConstantTimeCompare(hashedToken, hashToken) == 1

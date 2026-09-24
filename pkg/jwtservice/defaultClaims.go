@@ -64,7 +64,7 @@ func NewRefreshTokenClaim(config JWTConfig, tokenUser *TokenUser) *RefreshTokenC
 			Subject:   tokenUser.ID.String(),                // Идентификатор пользователя (sub)
 			IssuedAt:  jwt.NewNumericDate(now),              // Время выдачи
 			NotBefore: jwt.NewNumericDate(now),              // Время начала действия токена
-			ExpiresAt: jwt.NewNumericDate(now.Add(timeDur)), // Срок действия: токен станет невалидным через 15 минут
+			ExpiresAt: jwt.NewNumericDate(now.Add(timeDur)), // Срок действия: токен станет невалидным через N минут
 			// Audience: []string{"web-client"},
 		},
 	}

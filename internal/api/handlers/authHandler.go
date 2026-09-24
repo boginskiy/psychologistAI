@@ -10,8 +10,8 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
-	"github.com/boginskiy/psychologistAI/internal/errs/server"
-	"github.com/boginskiy/psychologistAI/internal/errs/users"
+	"github.com/boginskiy/psychologistAI/internal/errs"
+
 	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
@@ -53,16 +53,43 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	// Берем cookie с refresh token
 	cookie, err := r.Cookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
-		fmt.Println(fmt.Errorf("%s:%s", users.ErrAuth, err))
-		infoResponse.ErrorUpdate(users.ErrAuth, http.StatusUnauthorized)
+		fmt.Println(fmt.Errorf("%s:%s", errs.ErrAuth, err))
+		infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
 		h.ResponseSender.SendResponse(w, infoResponse)
 	}
 
-	refreshTokenRequest.UserAgent = request.TakeInfoAboutUserAgent(r)
+	// Info current request
+	refreshTokenRequest.OS, refreshTokenRequest.Browser, refreshTokenRequest.Device = request.TakeDeviceInfo(r)
+	refreshTokenRequest.UserAgent = request.TakeUserAgent(r)
 	refreshTokenRequest.IP = request.TakeRealUserIP(r)
 	refreshTokenRequest.Token = cookie.Value
 
 	newToken, err := h.AuthService.Refresh(r.Context(), refreshTokenRequest)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, errs.ErrUsingToken):
+			// Хакерская атака +logger
+			infoResponse.ErrorUpdate(errs.ErrUsingToken, http.StatusUnauthorized)
+
+		case errors.Is(err, errs.ErrAuth):
+			infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		// Server
+		case errors.Is(err, errs.ErrServer):
+			infoResponse.ErrorUpdate(err, http.StatusInternalServerError)
+
+		default:
+			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+		}
+		h.ResponseSender.SendResponse(w, infoResponse)
+		return
+	}
+
+	_ = newToken
+
+	// TODO...
+	return
 
 }
 
@@ -92,18 +119,18 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 		switch {
 		// Credentials
-		case errors.Is(err, users.ErrInvalidCredentials):
-			infoResponse.ErrorUpdate(users.ErrInvalidCredentials, http.StatusUnauthorized)
+		case errors.Is(err, errs.ErrInvalidCredentials):
+			infoResponse.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
 
 		// Verification
-		case errors.Is(err, users.ErrVerification):
+		case errors.Is(err, errs.ErrVerification):
 			infoResponse.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
-		case errors.Is(err, users.ErrAttemptsVerification):
-			infoResponse.ErrorUpdate(users.ErrAttemptsVerification, http.StatusTooManyRequests)
+		case errors.Is(err, errs.ErrAttemptsVerification):
+			infoResponse.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
-		case errors.Is(err, server.ErrServer):
-			// users.ErrServer
+		case errors.Is(err, errs.ErrServer):
+			// errs.ErrServer
 			infoResponse.ErrorUpdate(err, http.StatusInternalServerError)
 
 		default:
@@ -119,8 +146,8 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 	if err1 != nil || err2 != nil {
 		// + Logger full error
-		fmt.Println(fmt.Errorf("%s:%s:%s", server.ErrServer, err1, err2))
-		infoResponse.ErrorUpdate(server.ErrServer, http.StatusInternalServerError)
+		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
+		infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 		h.ResponseSender.SendResponse(w, infoResponse)
 		return
 	}
