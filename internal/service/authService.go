@@ -23,27 +23,33 @@ const OffSet = 3      // Глубина удаления исторически�
 type AuthServ struct {
 	Validater   Validater
 	Notifier    Notifier
-	UserRepo    repository.UserRepo
-	SessionRepo repository.SessionRepo
 	JWTManager  jwtservice.JWTManager
 	GeoSecurity security.GeoSecurity
+
+	UserRepo    repository.UserRepo
+	SessionRepo repository.SessionRepo
 }
+
+// ctx, validater, notifier, userRepo, jwtManager, a.GeoChecker)
 
 func NewAuthServ(
 	ctx context.Context,
 	validater Validater,
 	notifier Notifier,
-	userRepo repository.UserRepo,
-	SessionRepo repository.SessionRepo,
 	jwtManager jwtservice.JWTManager,
 	geoSecurity security.GeoSecurity,
+
+	userRepo repository.UserRepo,
+	sessionRepo repository.SessionRepo,
 ) *AuthServ {
 	return &AuthServ{
 		Validater:   validater,
 		Notifier:    notifier,
-		UserRepo:    userRepo,
 		JWTManager:  jwtManager,
 		GeoSecurity: geoSecurity,
+
+		UserRepo:    userRepo,
+		SessionRepo: sessionRepo,
 	}
 }
 

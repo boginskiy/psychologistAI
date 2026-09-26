@@ -4,25 +4,34 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
+	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
-	userrepo "github.com/boginskiy/psychologistAI/internal/repository/userRepo"
+	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/repository/userrepo"
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/internal/service/infra"
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
+	"github.com/boginskiy/psychologistAI/pkg/security"
 )
+
+const PathCountryDB = "GeoLite2-Country.mmdb"
+const PathASNDB = "GeoLite2-ASN.mmdb"
 
 type App struct {
 	Cfg  config.Config
 	Logg logger.Logger
 
-	Cooker cookie.Cooker
-	Server server.Server
-	Router router.Router
+	ResponseSender api.ResponseSender
+	Cooker         cookie.Cooker
+	Server         server.Server
+	Router         router.Router
+
+	GeoChecker *security.GeoChecker
 }
 
 func NewApp(ctx context.Context) (*App, error) {
@@ -36,6 +45,7 @@ func NewApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	defer a.GeoChecker.Close()
 	return a.Server.Run(ctx, a.Router.Run())
 }
 
@@ -44,8 +54,10 @@ func (a *App) initModules(ctx context.Context) error {
 		// Последовательность inits имеет значение.
 		a.initConfig,
 		a.initLogger,
+		a.initResponseSender,
 		a.initRouter,
 		a.initCooker,
+		a.initGeoChecker,
 		a.initHandlers,
 		a.initServer,
 	}
@@ -56,6 +68,20 @@ func (a *App) initModules(ctx context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *App) initResponseSender(ctx context.Context) error {
+	a.ResponseSender = response.NewResponse()
+	return nil
+}
+
+func (a *App) initGeoChecker(ctx context.Context) error {
+	checker, err := security.NewGeoChecker(PathCountryDB, PathASNDB)
+	if err != nil {
+		return err
+	}
+	a.GeoChecker = checker
 	return nil
 }
 
@@ -88,19 +114,19 @@ func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
 	validater := infra.NewValidService(ctx)
 	notifier := infra.NewEmailServ(ctx)
-	response := response.NewResponse()
 	jwtManager := jwtservice.NewJWTService()
 
 	// Repo
 	userRepo := userrepo.NewUserRepo()
+	sessionRepo := userrepo.NewSessionRepo()
 
 	// Services
-	authService := service.NewAuthServ(ctx, validater, notifier, userRepo, jwtManager)
+	authService := service.NewAuthServ(ctx, validater, notifier, jwtManager, a.GeoChecker, userRepo, sessionRepo)
 	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
 
 	// Handlers
-	authHandler := handlers.NewAuthHandler("/auth", authService, response, a.Cooker)
-	userHandler := handlers.NewUserHandler("/api/v1/user", userService, response)
+	authHandler := handlers.NewAuthHandler("/auth", authService, a.ResponseSender, a.Cooker)
+	userHandler := handlers.NewUserHandler("/api/v1/user", userService, a.ResponseSender)
 
 	// Router
 	a.Router.RegisterRoutes(userHandler)
@@ -109,7 +135,8 @@ func (a *App) initHandlers(ctx context.Context) error {
 }
 
 func (a *App) initRouter(ctx context.Context) error {
-	a.Router = router.NewRouterChi(ctx, "")
+	middlew := middleware.NewMiddlew(a.ResponseSender)
+	a.Router = router.NewRouterChi(ctx, middlew)
 	return nil
 }
 

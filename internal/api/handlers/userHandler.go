@@ -9,6 +9,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
+	"github.com/boginskiy/psychologistAI/internal/middleware"
 
 	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -33,10 +34,13 @@ func NewUserHandler(bpath string, userServ service.UserService, resSender api.Re
 	}
 }
 
-func (h *UserHandler) Registration(r chi.Router) {
+func (h *UserHandler) Registration(r chi.Router, middleware middleware.HandleMiddleware) {
 	r.Route(h.basepath, func(r chi.Router) {
-		r.Post("/registration", h.Register)        // POST /api/v1/user/registration
-		r.Get("/verification/{token}", h.Verifier) // GET  /api/v1/user/verification/{token}
+		// Public
+		r.Group(func(r chi.Router) {
+			r.Post("/registration", h.Register)        // POST /api/v1/user/registration
+			r.Get("/verification/{token}", h.Verifier) // GET  /api/v1/user/verification/{token}
+		})
 
 		// TODO...
 		// r.Get("/{id}", h.Informer) // GET  /api/v1/user/{id}

@@ -11,6 +11,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
+	"github.com/boginskiy/psychologistAI/internal/middleware"
 
 	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -34,11 +35,20 @@ func NewAuthHandler(bpath string, authServ service.AuthService, resSender api.Re
 	}
 }
 
-func (h *AuthHandler) Registration(r chi.Router) {
+func (h *AuthHandler) Registration(r chi.Router, middleware middleware.HandleMiddleware) {
 	r.Route(h.basepath, func(r chi.Router) {
-		r.Post("/login", h.Loginer)     // POST /auth/login
-		r.Post("/refresh", h.Refresher) // POST /auth/refresh
-		r.Post("/logout", h.Logouter)   // POST /auth/logout
+		// Public
+		r.Group(func(r chi.Router) {
+			r.Post("/login", h.Loginer)     // POST /auth/login
+			r.Post("/refresh", h.Refresher) // POST /auth/refresh
+		})
+
+		// Need Auth
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(h.AuthService))
+			r.Post("/logout", h.Logouter) // POST /auth/logout
+		})
+
 	})
 }
 
