@@ -43,7 +43,19 @@ type Session struct {
 	ExpiresAt  time.Time  `json:"expires_at" db:"expires_at"`     // Время жизни именно этой записи в БД. Должно совпадать с exp внутри Refresh Token.
 }
 
-func NewSession(userID uuid.UUID, id, refreshToken, ip, userAgent string, exp time.Time) *Session {
+func NewSession(
+	id string,
+	ip string,
+	refreshToken string,
+	userAgent string,
+	osInfo string,
+	browserInfo string,
+	deviceInfo string,
+	exp time.Time,
+	userID uuid.UUID,
+
+) *Session {
+
 	timeNow := time.Now().UTC()
 	return &Session{
 		ID:               id,
@@ -51,10 +63,12 @@ func NewSession(userID uuid.UUID, id, refreshToken, ip, userAgent string, exp ti
 		RefreshTokenHash: hashpass.CreateBytesHashSHA256(refreshToken),
 		AddressIP:        ip,
 		UserAgent:        userAgent,
-		// DeviceInfo: TODO...
-		CreatedAt:  timeNow,
-		LastUsedAt: timeNow,
-		ExpiresAt:  exp, // Время берем с refresh token
-		RevokedAt:  nil,
+		OSInfo:           osInfo,
+		BrowserInfo:      browserInfo,
+		DeviceInfo:       deviceInfo,
+		CreatedAt:        timeNow,
+		LastUsedAt:       timeNow,
+		ExpiresAt:        exp, // Время берем с refresh token
+		RevokedAt:        nil,
 	}
 }

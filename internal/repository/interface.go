@@ -38,6 +38,8 @@ type SessionRepo interface {
 	SessionReader
 	SessionCreater
 
+	UpdateAfterRefresh(newSession *models.Session, offset int) error
+	DeleteSession(sessionID string, offset int)
 	CancelSessions(userID uuid.UUID)
 	CancelSession(sessionID string)
 }

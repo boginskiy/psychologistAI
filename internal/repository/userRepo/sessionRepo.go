@@ -20,6 +20,41 @@ func NewSessionRepo() *SessionRepo {
 	}
 }
 
+func (r *SessionRepo) UpdateAfterRefresh(newSession *models.Session, offset int) error {
+	// TODO. Транзакцией сделать.
+	err := r.Create(newSession)
+	if err != nil {
+		return err
+	}
+	r.CancelSession(newSession.PreviousID)
+	r.DeleteSession(newSession.ID, offset)
+	return nil
+}
+
+func (r *SessionRepo) DeleteSession(sessionID string, offset int) {
+	// TODO. Транзакцией сделать.
+	tb := r.DB.GetSessionTable()
+	lastSessionID := sessionID
+
+	for range offset {
+		if session, ok := tb[sessionID]; ok && sessionID != "" {
+			lastSessionID = sessionID
+			sessionID = session.PreviousID
+		} else {
+			return
+		}
+	}
+
+	// Разрываем связь с удаляемой сессией
+	if session, ok := tb[lastSessionID]; ok {
+		session.PreviousID = ""
+		tb[lastSessionID] = session
+	}
+
+	// Удаляем сессию
+	delete(tb, sessionID)
+}
+
 func (r *SessionRepo) CancelSessions(userID uuid.UUID) {
 	tb := r.DB.GetSessionTable()
 	for _, session := range tb {

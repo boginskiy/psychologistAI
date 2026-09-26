@@ -62,6 +62,22 @@ func (c *Cookies) CreateCookie(configName, value string) (*http.Cookie, error) {
 	return nil, ErrConfigCookie
 }
 
+func (c *Cookies) ClearCookie(cookie *http.Cookie) (*http.Cookie, error) {
+	if config, ok := c.MapConfig[cookie.Name]; ok {
+		return &http.Cookie{
+			Name:     config.Name,
+			SameSite: http.SameSiteLaxMode,
+			Path:     config.Path,
+			HttpOnly: config.HttpOnly,
+			Secure:   config.Secure,
+			Value:    "",              // Пустое значение
+			Expires:  time.Unix(0, 1), // Эпоха Unix + 1 секунда (страховка для старых браузеров)
+			MaxAge:   -1,              // Удалить немедленно
+		}, nil
+	}
+	return nil, ErrConfigCookie
+}
+
 func (c *Cookies) transferIntToTime(tm int) time.Time {
 	return time.Now().Add(time.Duration(tm) * time.Minute)
 }

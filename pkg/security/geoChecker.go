@@ -55,7 +55,18 @@ func (c *GeoChecker) Close() error {
 	return nil
 }
 
-// isDatacenter возвращает true, если IP принадлежит известному облаку
+func (c *GeoChecker) IsDataCenter(ipStr string) bool {
+	org, err := c.getASN(ipStr)
+	if err != nil {
+		return false
+	}
+
+	if _, ok := DataCenters[org]; !ok {
+		return false
+	}
+	return true
+}
+
 func (c *GeoChecker) IsProviderChanged(currentIP, referenceIP string) bool {
 	if currentIP == "" || referenceIP == "" {
 		return false

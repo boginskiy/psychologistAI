@@ -14,6 +14,9 @@ type LoginUser struct {
 	Password  string `json:"password" db:"password_hash"`
 	IP        string `json:"-" db:"user_ip"`
 	UserAgent string `json:"-" db:"user_agent"`
+	OS        string
+	Browser   string
+	Device    string
 }
 
 // UpdateUserRequest - DTO для обновления пользователя

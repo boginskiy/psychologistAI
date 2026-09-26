@@ -10,12 +10,13 @@ var (
 	ErrRepeatVerification   = errors.New("client has passed verification")
 
 	// Authentification
-	ErrSession         = errors.New("session not found")
-	ErrCompareToken    = errors.New("tokens don't match")
-	ErrTimeLiveSession = errors.New("session is over")
-	ErrAuth            = errors.New("authentication error, need to log in")
-	ErrUsingToken      = errors.New("reuse of the token")
-	ErrLegitimacyUser  = errors.New("user legitimacy check failed")
+	ErrSession              = errors.New("session not found")
+	ErrCompareToken         = errors.New("tokens don't match")
+	ErrTimeLiveSession      = errors.New("session is over")
+	ErrAuth                 = errors.New("authentication error, need to log in")
+	ErrUsingToken           = errors.New("reuse of the token")
+	ErrLegitimacyUser       = errors.New("user legitimacy check failed")
+	ErrUpdateDBAfterRefresh = errors.New("error updating database with a new session")
 
 	// Session
 	ErrHistoricalSession = errors.New("historical session is missing")

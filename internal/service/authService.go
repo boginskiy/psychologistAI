@@ -8,7 +8,8 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/errs"
-	"github.com/boginskiy/psychologistAI/internal/security"
+	"github.com/boginskiy/psychologistAI/pkg/security"
+	"github.com/google/uuid"
 
 	models "github.com/boginskiy/psychologistAI/internal/models/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
@@ -16,7 +17,8 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
 
-const AttemptsCnt = 5
+const AttemptsCnt = 5 // Количество попыток для верификации пользователя
+const OffSet = 3      // Глубина удаления исторических сессией пользователя
 
 type AuthServ struct {
 	Validater   Validater
@@ -51,12 +53,12 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshToke
 	// Через контекст можно передать эти данные сюда на дальнейшую обработку
 
 	// Допустим тут у нас есть данные распарсенные с Refresh токена
-	dataFromRefresh := jwtservice.RefreshTokenClaim{}
+	refreshTokenClaim := jwtservice.RefreshTokenClaim{}
 
 	// =================================================================================
 
 	// Take last active session for current token
-	lastActiveSession, err := s.SessionRepo.Read(dataFromRefresh.ID)
+	lastActiveSession, err := s.SessionRepo.Read(refreshTokenClaim.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrSession, err)
 	}
@@ -90,11 +92,45 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshToke
 		return nil, errs.ErrLegitimacyUser
 	}
 
-	// Выпуск новой пары токенов
+	// Create new Tokens and Session
+	tokenPair, err := s.createTokenPair(
+		refreshTokenClaim.UserID,
+		refreshTokenClaim.UserName,
+		refreshTokenClaim.UserRoles)
 
-	// Меняем статус сессии
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
+	}
 
-	return nil, nil
+	newSession := models.NewSession(
+		tokenPair.SessionID,
+		refreshTokenReq.IP,
+		tokenPair.RefreshToken,
+		refreshTokenReq.UserAgent,
+		refreshTokenReq.OS,
+		refreshTokenReq.Browser,
+		refreshTokenReq.Device,
+		tokenPair.SessionExp,
+		refreshTokenClaim.UserID,
+	)
+
+	// Привязываем новую сессию к старой. Цепочка сессий.
+	newSession.PreviousID = lastActiveSession.ID
+
+	// Контроль количеств исторических сессий. Сохраняем в БД 3 крайних сессии.
+	// 1 - newSession                   - текущая новая сессия.
+	// 2 - lastActiveSession            - последняя активная сессия.
+	// 3 - lastActiveSession.PreviousID - самая старая сессия. После нее не должно быть иных сессий.
+
+	// Создаем запись с новой сессией.
+	// Cancel предыдущую сессию
+	// Удаляем самую старую сессию
+	err = s.SessionRepo.UpdateAfterRefresh(newSession, OffSet)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errs.ErrUpdateDBAfterRefresh, err)
+	}
+
+	return tokenPair, nil
 }
 
 // isItRealUser - Финальная проверка пользователя на лигитимность.
@@ -115,17 +151,6 @@ func (s *AuthServ) isItRealUser(session *models.Session, refreshTokenReq *dto.Re
 	}
 	return true
 }
-
-// TODO...
-// 1. Если есть только 1 историческая сессия и она скомпроментирована, т.е. от этой сессии уже выдан новый refresh token хакеру,
-//    то нам не с чем будет сопоставить текущие данные пользователя для подтверждения лигитимности.
-//
-// Действия:
-// 	  Проверяем время создания предыдущей сессии с time.Now,
-//    если ( time.Now - timeCreatedSession ) < 15 sec, тогда с высокой вероятностью, перед нами хакер
-//    дополнительно можно проверить его 'IP' и 'UserAgent'
-
-// SELECT * FROM sessions WHERE user_id = X AND is_active = true;
 
 func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.TokenPair, error) {
 	// Check user
@@ -156,26 +181,28 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 	}
 
 	// Create Tokens and Session
-	tokenPair, err := s.createTokenPair(userDomain)
+	tokenPair, err := s.createTokenPair(userDomain.ID, userDomain.Name, userDomain.Role)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
 	newSession := models.NewSession(
-		userDomain.ID,
 		tokenPair.SessionID,
-		tokenPair.RefreshToken,
 		loginUser.IP,
+		tokenPair.RefreshToken,
 		loginUser.UserAgent,
+		loginUser.OS,
+		loginUser.Browser,
+		loginUser.Device,
 		tokenPair.SessionExp,
+		userDomain.ID,
 	)
 
 	s.SessionRepo.Create(newSession)
-
 	return tokenPair, nil
 }
 
-func (s *AuthServ) createTokenPair(user *models.User) (*dto.TokenPair, error) {
+func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole []string) (*dto.TokenPair, error) {
 	configRefresh := jwtservice.NewJWTConfig(
 		config.TIME_LIVE_JWT_REFRESH_TOKEN,
 		config.SECRET_KEY_JWT_REFRESH_TOKEN,
@@ -188,7 +215,7 @@ func (s *AuthServ) createTokenPair(user *models.User) (*dto.TokenPair, error) {
 		config.HOST_NAME,
 	)
 
-	tokenUser := jwtservice.NewTokenUser(user.ID, user.Name, user.Role)
+	tokenUser := jwtservice.NewTokenUser(userID, userName, userRole)
 	refreshClaim := jwtservice.NewRefreshTokenClaim(configRefresh, tokenUser)
 	accessClaim := jwtservice.NewAccessTokenClaim(configAccess, refreshClaim)
 

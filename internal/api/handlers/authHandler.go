@@ -50,7 +50,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	infoResponse := &response.InfoResponse{}
 	refreshTokenRequest := &dto.RefreshTokenRequest{}
 
-	// Берем cookie с refresh token
+	// Take cookie with refresh token
 	cookie, err := r.Cookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
 		fmt.Println(fmt.Errorf("%s:%s", errs.ErrAuth, err))
@@ -64,20 +64,23 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	refreshTokenRequest.IP = request.TakeRealUserIP(r)
 	refreshTokenRequest.Token = cookie.Value
 
+	// Service
 	newToken, err := h.AuthService.Refresh(r.Context(), refreshTokenRequest)
 
 	if err != nil {
 		switch {
-		case errors.Is(err, errs.ErrUsingToken):
-			// Хакерская атака +logger
-			infoResponse.ErrorUpdate(errs.ErrUsingToken, http.StatusUnauthorized)
-
-		case errors.Is(err, errs.ErrAuth):
+		case errors.Is(err, errs.ErrSession):
+			// + logger
 			infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
 
-		// Server
-		case errors.Is(err, errs.ErrServer):
-			infoResponse.ErrorUpdate(err, http.StatusInternalServerError)
+		case errors.Is(err, errs.ErrUsingToken), errors.Is(err, errs.ErrLegitimacyUser),
+			errors.Is(err, errs.ErrTimeLiveSession), errors.Is(err, errs.ErrCompareToken):
+			// + logger
+			infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		case errors.Is(err, errs.ErrServer), errors.Is(err, errs.ErrUpdateDBAfterRefresh):
+			// + logger
+			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
 			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
@@ -86,11 +89,29 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = newToken
+	// Cookies
 
-	// TODO...
-	return
+	// Обнуляем текущий  cookie
+	oldCookie, err := h.Cooker.ClearCookie(cookie)
+	if err != nil {
+		// + logger
+	}
 
+	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, newToken.AccessToken)
+	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, newToken.RefreshToken)
+
+	if err1 != nil || err2 != nil {
+		// + Logger
+		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
+		infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
+		h.ResponseSender.SendResponse(w, infoResponse)
+		return
+	}
+
+	// Response
+	h.ResponseSender.AddSetCookies(w, oldCookie, cookieAccessToken, cookieRefreshToken)
+	infoResponse.InfoUpdate(vars.MessOkLogin, http.StatusOK)
+	h.ResponseSender.SendResponse(w, infoResponse)
 }
 
 func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +126,8 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Info current request
+	loginUser.OS, loginUser.Browser, loginUser.Device = request.TakeDeviceInfo(r)
 	loginUser.IP = request.TakeRealUserIP(r)
 	loginUser.UserAgent = request.TakeUserAgent(r)
 
