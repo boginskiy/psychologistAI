@@ -18,7 +18,7 @@ type AccessTokenClaim struct {
 	jwt.RegisteredClaims           // Стандартные поля JWT
 }
 
-func NewAccessTokenClaim(config JWTConfig, refreshClaim *RefreshTokenClaim) *AccessTokenClaim {
+func NewAccessTokenClaim(config ClaimConfig, refreshClaim *RefreshTokenClaim) *AccessTokenClaim {
 	timeDur := time.Duration(config.GetTimeLiveToken())
 	now := time.Now()
 
@@ -48,7 +48,7 @@ type RefreshTokenClaim struct {
 	jwt.RegisteredClaims           // Вложенная анонимная структура со стандартными полями
 }
 
-func NewRefreshTokenClaim(config JWTConfig, tokenUser *TokenUser) *RefreshTokenClaim {
+func NewRefreshTokenClaim(config ClaimConfig, tokenUser *TokenUser) *RefreshTokenClaim {
 	timeDur := time.Duration(config.GetTimeLiveToken())
 	now := time.Now()
 

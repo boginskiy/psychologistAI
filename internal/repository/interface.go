@@ -40,9 +40,7 @@ type SessionRepo interface {
 
 	UpdateAfterRefresh(newSession *models.Session, offset int) error
 	DeleteSession(sessionID string, offset int)
+	IsActiveSession(sessionID string) bool
 	CancelSessions(userID uuid.UUID)
 	CancelSession(sessionID string)
-}
-
-type CommRepo interface {
 }

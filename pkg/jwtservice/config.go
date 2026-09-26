@@ -1,22 +1,18 @@
 package jwtservice
 
-type JWTConf struct {
-	TimeLiveToken  int
-	SecretKeyToken string
-	HostName       string
+type ClaimConf struct {
+	TimeLiveToken int
+	HostName      string
 }
 
-func NewJWTConfig(timeLiveToken int, secretKeyToken, hostName string) *JWTConf {
-	return &JWTConf{}
+func NewClaimConfig(timeLiveToken int, hostName string) *ClaimConf {
+	return &ClaimConf{}
 }
 
-func (c *JWTConf) GetTimeLiveToken() int {
+func (c *ClaimConf) GetTimeLiveToken() int {
 	return c.TimeLiveToken
 }
-func (c *JWTConf) GetSecretKeyForToken() string {
-	return c.SecretKeyToken
-}
 
-func (c *JWTConf) GetHostName() string {
+func (c *ClaimConf) GetHostName() string {
 	return c.HostName
 }

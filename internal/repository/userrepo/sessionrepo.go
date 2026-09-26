@@ -20,6 +20,16 @@ func NewSessionRepo() *SessionRepo {
 	}
 }
 
+func (r *SessionRepo) IsActiveSession(sessionID string) bool {
+	tb := r.DB.GetSessionTable()
+	if session, ok := tb[sessionID]; ok {
+		if session.RevokedAt == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *SessionRepo) UpdateAfterRefresh(newSession *models.Session, offset int) error {
 	// TODO. Транзакцией сделать.
 	err := r.Create(newSession)

@@ -14,12 +14,12 @@ func NewJWTService() *JWTService {
 	return &JWTService{}
 }
 
-func (s *JWTService) GenerateToken(config JWTConfig, claims jwt.Claims) (string, error) {
+func (s *JWTService) GenerateToken(secretKey string, claims jwt.Claims) (string, error) {
 	// Создаем новый токен с алгоритмом HS256 (HMAC с SHA256)
 	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Подписываем токен нашим секретным ключом
-	key := []byte(config.GetSecretKeyForToken())
+	key := []byte(secretKey)
 
 	signedToken, err := newToken.SignedString(key)
 	if err != nil {
@@ -29,12 +29,12 @@ func (s *JWTService) GenerateToken(config JWTConfig, claims jwt.Claims) (string,
 	return signedToken, nil
 }
 
-func (s *JWTService) CheckAndParseToken(config JWTConfig, tokenString string, claims jwt.Claims) (jwt.Claims, error) {
+func (s *JWTService) CheckAndParseToken(secretKey string, tokenString string, claims jwt.Claims) (jwt.Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return config.GetSecretKeyForToken(), nil
+		return secretKey, nil
 	})
 
 	if err != nil {

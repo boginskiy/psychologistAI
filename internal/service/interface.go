@@ -16,11 +16,12 @@ type Notifier interface {
 }
 
 type AuthService interface {
-	Login(context.Context, *dto.LoginUser) (*dto.TokenPair, error)
 	Refresh(context.Context, *dto.RefreshTokenRequest) (*dto.TokenPair, error)
+	Auth(context.Context, *dto.AccessTokenRequest) (*dto.InfoUser, error)
+	Login(context.Context, *dto.LoginUser) (*dto.TokenPair, error)
 }
 
 type UserService interface {
-	Create(context.Context, *dto.CreateUser) (*models.User, error)
 	Verification(ctx context.Context, token string) (*models.User, error)
+	Create(context.Context, *dto.CreateUser) (*models.User, error)
 }

@@ -12,6 +12,16 @@ type RefreshTokenRequest struct {
 	Device    string
 }
 
+// AccessTokenRequest - DTO для access token
+type AccessTokenRequest struct {
+	Token     string
+	IP        string
+	UserAgent string
+	OS        string
+	Browser   string
+	Device    string
+}
+
 // TokenPair - DTO
 type TokenPair struct {
 	AccessToken  string    `json:"access_token"`

@@ -30,8 +30,6 @@ type AuthServ struct {
 	SessionRepo repository.SessionRepo
 }
 
-// ctx, validater, notifier, userRepo, jwtManager, a.GeoChecker)
-
 func NewAuthServ(
 	ctx context.Context,
 	validater Validater,
@@ -51,6 +49,42 @@ func NewAuthServ(
 		UserRepo:    userRepo,
 		SessionRepo: sessionRepo,
 	}
+}
+
+func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.AccessTokenRequest) (*dto.InfoUser, error) {
+	accessClaim := &jwtservice.AccessTokenClaim{}
+
+	_, err := s.JWTManager.CheckAndParseToken(config.SECRET_KEY_JWT_ACCESS_TOKEN, accessTokenReq.Token, accessClaim)
+	if err != nil {
+		// + logger
+		return nil, fmt.Errorf("%w: %w", errs.ErrAuth, err)
+	}
+
+	// Check active session
+	currentSession, err := s.SessionRepo.Read(accessClaim.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errs.ErrSession, err)
+	}
+
+	if currentSession.RevokedAt != nil {
+		return nil, errs.ErrActiveSession
+	}
+
+	// Deep check user. Если пользователь не прошел проверку лигитимности, кидаем ошибку.
+	if !s.isItRealUser(
+		currentSession.AddressIP, accessTokenReq.IP,
+		currentSession.DeviceInfo, accessTokenReq.Device) {
+		// + logger
+		return nil, errs.ErrLegitimacyUser
+	}
+
+	infoUser := &dto.InfoUser{
+		UserID:    accessClaim.UserID,
+		UserRoles: accessClaim.UserRoles,
+		TokenType: accessClaim.TokenType,
+		SessionID: accessClaim.SessionID,
+	}
+	return infoUser, nil
 }
 
 func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*dto.TokenPair, error) {
@@ -91,8 +125,10 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshToke
 		return nil, errs.ErrUsingToken
 	}
 
-	if !s.isItRealUser(lastActiveSession, refreshTokenReq) {
-		// Если пользователь не прошел проверку лигитимности, прерываем все сессии.
+	// Deep check user. Если пользователь не прошел проверку лигитимности, прерываем все сессии.
+	if !s.isItRealUser(
+		lastActiveSession.AddressIP, refreshTokenReq.IP,
+		lastActiveSession.DeviceInfo, refreshTokenReq.Device) {
 		// + logger
 		s.SessionRepo.CancelSessions(lastActiveSession.UserID)
 		return nil, errs.ErrLegitimacyUser
@@ -140,19 +176,19 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshToke
 }
 
 // isItRealUser - Финальная проверка пользователя на лигитимность.
-func (s *AuthServ) isItRealUser(session *models.Session, refreshTokenReq *dto.RefreshTokenRequest) bool {
-	isTheSameDevice := session.DeviceInfo == refreshTokenReq.Device
+func (s *AuthServ) isItRealUser(IPFromSession, IPFromReq, DeviceFromSession, DeviceFromReq string) bool {
+	isTheSameDevice := DeviceFromSession == DeviceFromReq
 
 	// Разные IP и устройства.
-	if session.AddressIP != refreshTokenReq.IP && !isTheSameDevice {
+	if IPFromSession != IPFromReq && !isTheSameDevice {
 		return false
 	}
 	// Другая страна (например RU -> BR)
-	if s.GeoSecurity.IsCountryChanged(session.AddressIP, refreshTokenReq.IP) && !isTheSameDevice {
+	if s.GeoSecurity.IsCountryChanged(IPFromSession, IPFromReq) && !isTheSameDevice {
 		return false
 	}
 	// Смена провайдера
-	if s.GeoSecurity.IsProviderChanged(session.AddressIP, refreshTokenReq.IP) && !isTheSameDevice {
+	if s.GeoSecurity.IsProviderChanged(IPFromSession, IPFromReq) && !isTheSameDevice {
 		return false
 	}
 	return true
@@ -209,15 +245,13 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 }
 
 func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole []string) (*dto.TokenPair, error) {
-	configRefresh := jwtservice.NewJWTConfig(
+	configRefresh := jwtservice.NewClaimConfig(
 		config.TIME_LIVE_JWT_REFRESH_TOKEN,
-		config.SECRET_KEY_JWT_REFRESH_TOKEN,
 		config.HOST_NAME,
 	)
 
-	configAccess := jwtservice.NewJWTConfig(
+	configAccess := jwtservice.NewClaimConfig(
 		config.TIME_LIVE_JWT_ACCESS_TOKEN,
-		config.SECRET_KEY_JWT_ACCESS_TOKEN,
 		config.HOST_NAME,
 	)
 
@@ -225,8 +259,8 @@ func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole [
 	refreshClaim := jwtservice.NewRefreshTokenClaim(configRefresh, tokenUser)
 	accessClaim := jwtservice.NewAccessTokenClaim(configAccess, refreshClaim)
 
-	refToken, err1 := s.JWTManager.GenerateToken(configRefresh, refreshClaim)
-	accToken, err2 := s.JWTManager.GenerateToken(configAccess, accessClaim)
+	refToken, err1 := s.JWTManager.GenerateToken(config.SECRET_KEY_JWT_REFRESH_TOKEN, refreshClaim)
+	accToken, err2 := s.JWTManager.GenerateToken(config.SECRET_KEY_JWT_ACCESS_TOKEN, accessClaim)
 
 	if err1 != nil || err2 != nil {
 		return nil, fmt.Errorf("%w:%w:%w", errs.ErrServer, err1, err2)
@@ -238,4 +272,23 @@ func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole [
 		SessionID:    refreshClaim.ID,
 		SessionExp:   refreshClaim.ExpiresAt.Time,
 	}, nil
+}
+
+// =================================
+//
+//	Context Key
+//
+// =================================
+
+type ctxKey int
+
+const infoUserKey ctxKey = iota
+
+func SetInfoUser(ctx context.Context, infoUser dto.InfoUser) context.Context {
+	return context.WithValue(ctx, infoUserKey, infoUser)
+}
+
+func GetInfoUser(ctx context.Context) (dto.InfoUser, bool) {
+	infoUser, ok := ctx.Value(infoUserKey).(dto.InfoUser)
+	return infoUser, ok
 }
