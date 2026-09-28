@@ -62,8 +62,8 @@ func (c *Cookies) CreateCookie(configName, value string) (*http.Cookie, error) {
 	return nil, ErrConfigCookie
 }
 
-func (c *Cookies) ClearCookie(cookie *http.Cookie) (*http.Cookie, error) {
-	if config, ok := c.MapConfig[cookie.Name]; ok {
+func (c *Cookies) ClearCookie(nameCookie string) (*http.Cookie, error) {
+	if config, ok := c.MapConfig[nameCookie]; ok {
 		return &http.Cookie{
 			Name:     config.Name,
 			SameSite: http.SameSiteLaxMode,

@@ -22,6 +22,9 @@ var (
 	ErrHistoricalSession = errors.New("historical session is missing")
 	ErrActiveSession     = errors.New("session is not active")
 
+	// Context
+	ErrInfoContext = errors.New("no information from context")
+
 	// Credentials
 	ErrInvalidCredentials = errors.New("invalid email or password")
 

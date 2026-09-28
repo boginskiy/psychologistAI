@@ -1,4 +1,4 @@
-package context
+package request
 
 import (
 	"context"
@@ -6,15 +6,13 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 )
 
-type ctxKey int
-
-const infoUserKey ctxKey = iota
+type infoUserKey struct{}
 
 func SetInfoUserToContext(ctx context.Context, infoUser dto.InfoUser) context.Context {
-	return context.WithValue(ctx, infoUserKey, infoUser)
+	return context.WithValue(ctx, infoUserKey{}, infoUser)
 }
 
 func GetInfoUserFromContext(ctx context.Context) (dto.InfoUser, bool) {
-	infoUser, ok := ctx.Value(infoUserKey).(dto.InfoUser)
+	infoUser, ok := ctx.Value(infoUserKey{}).(dto.InfoUser)
 	return infoUser, ok
 }

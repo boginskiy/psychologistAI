@@ -24,7 +24,7 @@ type UserRepo interface {
 	UserReader
 }
 
-// =============================
+// =================================================================
 type SessionReader interface {
 	Read(id string) (*domain.Session, error)
 }

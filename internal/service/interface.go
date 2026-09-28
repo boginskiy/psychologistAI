@@ -11,6 +11,7 @@ type AuthService interface {
 	Refresh(context.Context, *dto.TokenReq) (*dto.TokenPair, error)
 	Auth(context.Context, *dto.TokenReq) (*dto.InfoUser, error)
 	Login(context.Context, *dto.LoginUser) (*dto.TokenPair, error)
+	Logout(ctx context.Context) error
 }
 
 type UserService interface {

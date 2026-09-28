@@ -7,6 +7,7 @@ import (
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/security"
@@ -53,6 +54,16 @@ func NewAuthServ(
 		UserRepo:    userRepo,
 		SessionRepo: sessionRepo,
 	}
+}
+
+func (s *AuthServ) Logout(ctx context.Context) error {
+	infoUser, ok := request.GetInfoUserFromContext(ctx)
+	if !ok {
+		return errs.ErrInfoContext
+	}
+	// Delete all sessions. Revoked == time.Now()
+	s.SessionRepo.CancelSessions(infoUser.UserID)
+	return nil
 }
 
 func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.TokenReq) (*dto.InfoUser, error) {

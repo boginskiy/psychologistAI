@@ -55,13 +55,31 @@ func (h *AuthHandler) Registration(r chi.Router, middleware middleware.HandleMid
 		// Need Auth
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(h.AuthService))
-			r.Post("/logout", h.Logouter) // POST /auth/logout
+			r.Get("/logout", h.Logouter) // POST /auth/logout
 		})
 	})
 }
 
 func (h *AuthHandler) Logouter(w http.ResponseWriter, r *http.Request) {
+	// Service
+	err := h.AuthService.Logout(r.Context())
+	if err != nil {
+		body := response.NewInfoBodyWithErr(errs.ErrInfoContext, http.StatusInternalServerError)
+		h.Responder.SendResponse(w, body)
+		return
+	}
 
+	// Cookies
+	oldCookie, err := h.Cooker.ClearCookie(config.COOKIE_NAME_ACCESS_TOKEN)
+	if err != nil {
+		// + logger
+		fmt.Println(fmt.Errorf("%v", err))
+	}
+
+	// Response
+	h.Responder.AddSetCookies(w, oldCookie)
+	body := response.NewInfoBody(vars.MessOkLogout, http.StatusOK)
+	h.Responder.SendResponse(w, body)
 }
 
 func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +91,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 
 		body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
 		h.Responder.SendResponse(w, body)
+		return
 	}
 
 	// Put Info from current request
@@ -110,7 +129,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	// Cookies
 
 	// Обнуляем текущий  cookie
-	oldCookie, err := h.Cooker.ClearCookie(cookie)
+	oldCookie, err := h.Cooker.ClearCookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
 		// + logger
 		fmt.Println(fmt.Errorf("%v", err))
@@ -196,17 +215,3 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
-
-// TODO:
-// Проверка в Мидлвари JWT токена
-
-// Logout
-// 3. Ротация и отзыв (Revocation) Так как JWT сам по себе живет своей жизнью до истечения срока,
-// тебе обязательно нужен механизм принудительного завершения сессии (например, кнопка
-// «Выйти на всех устройствах»).
-
-// При создании refresh token генерируй уникальный идентификатор — JTI (JWT ID).
-// Храни этот JTI в быстрой базе (Redis) вместе с UserID и временем жизни.
-// В самом payload refresh token тоже положи этот JTI.
-// При каждом вызове /auth/refresh проверяй наличие этого JTI в Redis. Если его нет (пользователь нажал Logout ранее) — отклоняй запрос.
-// При нажатии /auth/logout удаляй текущий JTI из Redis и присылай Set-Cookie с Max-Age: -1 для удаления обеих кук.
