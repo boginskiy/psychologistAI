@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
@@ -11,26 +12,27 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
 
-	"github.com/boginskiy/psychologistAI/internal/models/response"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 
-	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/go-chi/chi"
 )
 
 const Token = "token"
 
 type UserHandler struct {
-	UserService    service.UserService
-	ResponseSender api.ResponseSender
-	basepath       string
+	UserService service.UserService
+	Responder   api.Responder
+	Requester   api.Requester
+	basepath    string
 }
 
-func NewUserHandler(bpath string, userServ service.UserService, resSender api.ResponseSender) *UserHandler {
+func NewUserHandler(bpath string, userServ service.UserService, responder api.Responder, requester api.Requester) *UserHandler {
 	return &UserHandler{
-		UserService:    userServ,
-		ResponseSender: resSender,
-		basepath:       bpath,
+		basepath:    bpath,
+		UserService: userServ,
+		Responder:   responder,
+		Requester:   requester,
 	}
 }
 
@@ -57,47 +59,51 @@ func (h *UserHandler) Registration(r chi.Router, middleware middleware.HandleMid
 }
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &response.InfoResponse{}
+	body := &response.InfoBody{}
 	token := chi.URLParam(r, Token)
 
+	// Service
 	_, err := h.UserService.Verification(r.Context(), token)
 
 	// Errors
 	if err != nil {
+		// + logger
+		fmt.Println(fmt.Errorf("%v", err))
+
 		switch {
 		// Verification
 		case errors.Is(err, errs.ErrLinkVerification):
-			infoResponse.ErrorUpdate(errs.ErrLinkVerification, http.StatusNotFound)
+			body.ErrorUpdate(errs.ErrLinkVerification, http.StatusNotFound)
 		case errors.Is(err, errs.ErrRepeatVerification):
-			infoResponse.ErrorUpdate(errs.ErrRepeatVerification, http.StatusBadRequest)
+			body.ErrorUpdate(errs.ErrRepeatVerification, http.StatusBadRequest)
 		case errors.Is(err, errs.ErrAttemptsVerification):
-			infoResponse.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
+			body.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
 		case errors.Is(err, errs.ErrServer):
-			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
+			body.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
-			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+			body.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.ResponseSender.SendResponse(w, infoResponse)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
-	infoResponse.InfoUpdate(vars.MessOkVerification, http.StatusOK)
-	h.ResponseSender.SendResponse(w, infoResponse)
+	body.InfoUpdate(vars.MessOkVerification, http.StatusOK)
+	h.Responder.SendResponse(w, body)
 }
 
 // Убрать из сервиса подготовку user Response и перенести ее сюда
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &response.InfoResponse{}
+	body := &response.InfoBody{}
 	createUser := &dto.CreateUser{}
 
-	_, err := request.ReadAllRequestBody(r, createUser)
+	_, err := h.Requester.ReadAllRequestBody(r, createUser)
 
 	if err != nil {
-		infoResponse.ErrorUpdate(err, http.StatusBadRequest)
-		h.ResponseSender.SendResponse(w, infoResponse)
+		body.ErrorUpdate(err, http.StatusBadRequest)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
@@ -109,20 +115,20 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		switch {
 		// Credentials
 		case errors.Is(err, errs.ErrInvalidCredentials):
-			infoResponse.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+			body.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
 
 			// Server
 		case errors.Is(err, errs.ErrServer):
-			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
+			body.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
-			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+			body.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.ResponseSender.SendResponse(w, infoResponse)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
 	msg := vars.FuncNeedRegistration(userDomen.Email, config.LIVE_TIME_VARIFICATION_TOKEN)
-	infoResponse.InfoUpdate(msg, http.StatusOK)
-	h.ResponseSender.SendResponse(w, infoResponse)
+	body.InfoUpdate(msg, http.StatusOK)
+	h.Responder.SendResponse(w, body)
 }

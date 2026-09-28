@@ -1,8 +1,8 @@
 package api
 
-import (
-	"net/http"
-)
+import "net/http"
+
+// ResponseBody
 
 type StatusGetter interface {
 	GetStatus() int
@@ -21,8 +21,39 @@ type ResponseBody interface {
 	InfoUpdater
 }
 
-type ResponseSender interface {
-	SetContentType(w http.ResponseWriter, contentType string)
-	AddSetCookies(w http.ResponseWriter, cookies ...*http.Cookie)
+// Responder
+
+type Sender interface {
 	SendResponse(w http.ResponseWriter, body ResponseBody)
+}
+
+type Setter interface {
+	SetContentType(w http.ResponseWriter, contentType string)
+}
+
+type Adder interface {
+	AddSetCookies(w http.ResponseWriter, cookies ...*http.Cookie)
+}
+
+type Responder interface {
+	Setter
+	Sender
+	Adder
+}
+
+// Requester
+
+type Reader interface {
+	ReadAllRequestBody(r *http.Request, item any) (any, error)
+}
+
+type Taker interface {
+	TakeRealUserIP(r *http.Request) string
+	TakeUserAgent(r *http.Request) string
+	TakeDeviceInfo(r *http.Request) (os, browser, device string)
+}
+
+type Requester interface {
+	Reader
+	Taker
 }

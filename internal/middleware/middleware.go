@@ -1,26 +1,28 @@
 package middleware
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
-	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
-	"github.com/boginskiy/psychologistAI/internal/api/request"
+	"github.com/boginskiy/psychologistAI/internal/api/adapters"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/errs"
-	"github.com/boginskiy/psychologistAI/internal/models/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 )
 
 type Middlew struct {
-	ResponseSender api.ResponseSender
+	Responder api.Responder
+	Requester api.Requester
 }
 
-func NewMiddlew(resSender api.ResponseSender) *Middlew {
+func NewMiddlew(responder api.Responder, requester api.Requester) *Middlew {
 	return &Middlew{
-		ResponseSender: resSender,
+		Responder: responder,
+		Requester: requester,
 	}
 }
 
@@ -42,9 +44,8 @@ func (m *Middlew) RecoveryMiddleware(next http.Handler) http.Handler {
 				// + logger
 				log.Printf("panic: %v\n", rec)
 
-				infoResponse := &response.InfoResponse{}
-				infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
-				m.ResponseSender.SendResponse(w, infoResponse)
+				body := response.NewInfoBodyWithErr(errs.ErrServer, http.StatusInternalServerError)
+				m.Responder.SendResponse(w, body)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -58,41 +59,35 @@ func (m *Middlew) AuthMiddleware(authService service.AuthService) func(http.Hand
 			cookie, err := r.Cookie(config.COOKIE_NAME_ACCESS_TOKEN)
 			if err != nil {
 				// + logger
-				log.Printf("%v: %v", errs.ErrAuth, err)
+				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
 
-				infoResponse := &response.InfoResponse{}
-				infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
-				m.ResponseSender.SendResponse(w, infoResponse)
+				body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
+				m.Responder.SendResponse(w, body)
 				return
 			}
 
-			// Request
-			accTokenReq := &dto.AccessTokenRequest{}
-
-			accTokenReq.OS, accTokenReq.Browser, accTokenReq.Device = request.TakeDeviceInfo(r)
-			accTokenReq.UserAgent = request.TakeUserAgent(r)
-			accTokenReq.IP = request.TakeRealUserIP(r)
-			accTokenReq.Token = cookie.Value
-
+			// Put Info from current request
+			accessTokenReq := adapters.NewTokenReq(m.Requester, r, cookie)
 			// Service
-			infoUser, err := authService.Auth(r.Context(), accTokenReq)
+			infoUser, err := authService.Auth(r.Context(), accessTokenReq)
 
 			if err != nil {
 				// + logger
-				log.Printf("%v: %v", errs.ErrAuth, err)
+				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
 
-				infoResponse := &response.InfoResponse{}
-				infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
-				m.ResponseSender.SendResponse(w, infoResponse)
+				body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
+				m.Responder.SendResponse(w, body)
 				return
 			}
 
 			// Context
-			newCtx := service.SetInfoUser(r.Context(), *infoUser)
+			newCtx := service.SetInfoUserToContext(r.Context(), *infoUser)
 			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
 }
 
-// Рефакторинг AuthMiddleware, еще раз все пройти посмотреть логику.
+// Посмотреть, что с рефреш, отдельный метод мидвари?
+// Доделать рефреш
 // Делать далее /logout
+// Далее делаем анкету и продумываем фронт

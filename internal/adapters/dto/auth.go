@@ -2,18 +2,28 @@ package dto
 
 import "time"
 
-// RefreshTokenRequest - DTO для refresh token
-type RefreshTokenRequest struct {
-	Token     string
-	IP        string
-	UserAgent string
-	OS        string
-	Browser   string
-	Device    string
-}
+// // RefreshTokenRequest - DTO для refresh token
+// type RefreshTokenReq struct {
+// 	Token     string
+// 	IP        string
+// 	UserAgent string
+// 	OS        string
+// 	Browser   string
+// 	Device    string
+// }
 
-// AccessTokenRequest - DTO для access token
-type AccessTokenRequest struct {
+// // AccessTokenRequest - DTO для access token
+// type AccessTokenReq struct {
+// 	Token     string
+// 	IP        string
+// 	UserAgent string
+// 	OS        string
+// 	Browser   string
+// 	Device    string
+// }
+
+// TokenReq - DTO
+type TokenReq struct {
 	Token     string
 	IP        string
 	UserAgent string

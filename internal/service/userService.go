@@ -8,7 +8,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
@@ -40,7 +40,7 @@ func NewUserServ(
 }
 
 // TODO. Слабое место для атак методом перебора.
-func (s *UserServ) Verification(ctx context.Context, token string) (*models.User, error) {
+func (s *UserServ) Verification(ctx context.Context, token string) (*domain.User, error) {
 	// Take user from DB
 	userDomain, err := s.UserRepo.ReadByToken(hashpass.CreateBytesHashSHA256(token))
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*models.User
 	return userDomain, nil
 }
 
-func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*models.User, error) {
+func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*domain.User, error) {
 	// Валидация Email
 	err := s.Validater.CheckNotEmptyStrField("email", createUser.Email)
 	if err != nil {
@@ -98,7 +98,7 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*mod
 	}
 
 	// Create domain user
-	userDomain, err := models.NewUser(createUser)
+	userDomain, err := domain.NewUser(createUser)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}

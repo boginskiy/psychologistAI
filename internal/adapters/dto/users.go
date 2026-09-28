@@ -2,7 +2,7 @@ package dto
 
 import "github.com/google/uuid"
 
-// CreateUserRequest - DTO для создания пользователя
+// CreateUser - DTO для создания пользователя
 type CreateUser struct {
 	Email    string `json:"email" db:"email" validate:"required,email"`
 	Password string `json:"password" db:"password_hash"`
@@ -10,7 +10,7 @@ type CreateUser struct {
 	Phone    string `json:"phone,omitempty" db:"phone"`
 }
 
-// LoginUserRequest - DTO для авторизации пользователя
+// LoginUser - DTO для авторизации пользователя
 type LoginUser struct {
 	Email     string `json:"email" db:"email" validate:"required,email"`
 	Password  string `json:"password" db:"password_hash"`
@@ -21,7 +21,7 @@ type LoginUser struct {
 	Device    string
 }
 
-// UpdateUserRequest - DTO для обновления пользователя
+// UpdateUser - DTO для обновления пользователя
 type UpdateUser struct {
 	FirstName string `json:"first_name,omitempty"`
 	LastName  string `json:"last_name,omitempty"`

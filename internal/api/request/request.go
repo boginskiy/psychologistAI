@@ -17,7 +17,14 @@ const (
 	ForwardedHeader     = "Forwarded"
 )
 
-func ReadAllRequestBody(r *http.Request, item any) (any, error) {
+type Request struct {
+}
+
+func NewRequest() *Request {
+	return &Request{}
+}
+
+func (t *Request) ReadAllRequestBody(r *http.Request, item any) (any, error) {
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
@@ -32,7 +39,7 @@ func ReadAllRequestBody(r *http.Request, item any) (any, error) {
 }
 
 // TakeRealUserIP. Извлекает реальный IP клиента, учитывая цепочку прокси.
-func TakeRealUserIP(r *http.Request) string {
+func (t *Request) TakeRealUserIP(r *http.Request) string {
 	// 1. Стандарт от большинства облачных провайдеров и CDN (Cloudflare, Akamai)
 	if ip := r.Header.Get(CloudProviderHeader); ip != "" {
 		return strings.TrimSpace(ip)
@@ -78,11 +85,11 @@ func TakeRealUserIP(r *http.Request) string {
 	return host
 }
 
-func TakeUserAgent(r *http.Request) string {
+func (t *Request) TakeUserAgent(r *http.Request) string {
 	return r.Header.Get("User-Agent")
 }
 
-func TakeDeviceInfo(r *http.Request) (os, browser, device string) {
+func (t *Request) TakeDeviceInfo(r *http.Request) (os, browser, device string) {
 	ua := useragent.Parse(r.Header.Get("User-Agent"))
 	return ua.OS, ua.Name, ua.Device
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/security"
 	"github.com/google/uuid"
 
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
@@ -51,7 +51,7 @@ func NewAuthServ(
 	}
 }
 
-func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.AccessTokenRequest) (*dto.InfoUser, error) {
+func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.TokenReq) (*dto.InfoUser, error) {
 	accessClaim := &jwtservice.AccessTokenClaim{}
 
 	_, err := s.JWTManager.CheckAndParseToken(config.SECRET_KEY_JWT_ACCESS_TOKEN, accessTokenReq.Token, accessClaim)
@@ -87,7 +87,7 @@ func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.AccessTokenRequ
 	return infoUser, nil
 }
 
-func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshTokenRequest) (*dto.TokenPair, error) {
+func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.TokenReq) (*dto.TokenPair, error) {
 	// TODO
 	// В мидлваре проверим подпись токена, и сделаем парсинг данных.
 	// Через контекст можно передать эти данные сюда на дальнейшую обработку
@@ -144,7 +144,7 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.RefreshToke
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
-	newSession := models.NewSession(
+	newSession := domain.NewSession(
 		tokenPair.SessionID,
 		refreshTokenReq.IP,
 		tokenPair.RefreshToken,
@@ -228,7 +228,7 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
-	newSession := models.NewSession(
+	newSession := domain.NewSession(
 		tokenPair.SessionID,
 		loginUser.IP,
 		tokenPair.RefreshToken,
@@ -284,11 +284,11 @@ type ctxKey int
 
 const infoUserKey ctxKey = iota
 
-func SetInfoUser(ctx context.Context, infoUser dto.InfoUser) context.Context {
+func SetInfoUserToContext(ctx context.Context, infoUser dto.InfoUser) context.Context {
 	return context.WithValue(ctx, infoUserKey, infoUser)
 }
 
-func GetInfoUser(ctx context.Context) (dto.InfoUser, bool) {
+func GetInfoUserFromContext(ctx context.Context) (dto.InfoUser, bool) {
 	infoUser, ok := ctx.Value(infoUserKey).(dto.InfoUser)
 	return infoUser, ok
 }

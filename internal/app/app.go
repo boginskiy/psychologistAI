@@ -6,6 +6,7 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
@@ -26,10 +27,11 @@ type App struct {
 	Cfg  config.Config
 	Logg logger.Logger
 
-	ResponseSender api.ResponseSender
-	Cooker         cookie.Cooker
-	Server         server.Server
-	Router         router.Router
+	Responder api.Responder
+	Requester api.Requester
+	Cooker    cookie.Cooker
+	Server    server.Server
+	Router    router.Router
 
 	GeoChecker *security.GeoChecker
 }
@@ -54,7 +56,8 @@ func (a *App) initModules(ctx context.Context) error {
 		// Последовательность inits имеет значение.
 		a.initConfig,
 		a.initLogger,
-		a.initResponseSender,
+		a.initResponder,
+		a.initRequester,
 		a.initRouter,
 		a.initCooker,
 		a.initGeoChecker,
@@ -71,8 +74,13 @@ func (a *App) initModules(ctx context.Context) error {
 	return nil
 }
 
-func (a *App) initResponseSender(ctx context.Context) error {
-	a.ResponseSender = response.NewResponse()
+func (a *App) initRequester(ctx context.Context) error {
+	a.Requester = request.NewRequest()
+	return nil
+}
+
+func (a *App) initResponder(ctx context.Context) error {
+	a.Responder = response.NewResponse()
 	return nil
 }
 
@@ -115,6 +123,7 @@ func (a *App) initHandlers(ctx context.Context) error {
 	validater := infra.NewValidService(ctx)
 	notifier := infra.NewEmailServ(ctx)
 	jwtManager := jwtservice.NewJWTService()
+	requester := request.NewRequest()
 
 	// Repo
 	userRepo := userrepo.NewUserRepo()
@@ -125,8 +134,8 @@ func (a *App) initHandlers(ctx context.Context) error {
 	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
 
 	// Handlers
-	authHandler := handlers.NewAuthHandler("/auth", authService, a.ResponseSender, a.Cooker)
-	userHandler := handlers.NewUserHandler("/api/v1/user", userService, a.ResponseSender)
+	authHandler := handlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
+	userHandler := handlers.NewUserHandler("/api/v1/user", userService, a.Responder, requester)
 
 	// Router
 	a.Router.RegisterRoutes(userHandler)
@@ -135,7 +144,7 @@ func (a *App) initHandlers(ctx context.Context) error {
 }
 
 func (a *App) initRouter(ctx context.Context) error {
-	middlew := middleware.NewMiddlew(a.ResponseSender)
+	middlew := middleware.NewMiddlew(a.Responder, a.Requester)
 	a.Router = router.NewRouterChi(ctx, middlew)
 	return nil
 }

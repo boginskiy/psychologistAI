@@ -1,21 +1,21 @@
 package repository
 
 import (
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/google/uuid"
 )
 
 type UserReader interface {
-	ReadByToken(token []byte) (*models.User, error)
-	ReadByEmail(email string) (*models.User, error)
+	ReadByToken(token []byte) (*domain.User, error)
+	ReadByEmail(email string) (*domain.User, error)
 }
 
 type UserCreater interface {
-	Create(user *models.User) error
+	Create(user *domain.User) error
 }
 
 type UserUpdater interface {
-	UpdateItem(user *models.User)
+	UpdateItem(user *domain.User)
 }
 
 type UserRepo interface {
@@ -26,11 +26,11 @@ type UserRepo interface {
 
 // =============================
 type SessionReader interface {
-	Read(id string) (*models.Session, error)
+	Read(id string) (*domain.Session, error)
 }
 
 type SessionCreater interface {
-	Create(session *models.Session) error
+	Create(session *domain.Session) error
 }
 
 type SessionRepo interface {
@@ -38,7 +38,7 @@ type SessionRepo interface {
 	SessionReader
 	SessionCreater
 
-	UpdateAfterRefresh(newSession *models.Session, offset int) error
+	UpdateAfterRefresh(newSession *domain.Session, offset int) error
 	DeleteSession(sessionID string, offset int)
 	IsActiveSession(sessionID string) bool
 	CancelSessions(userID uuid.UUID)

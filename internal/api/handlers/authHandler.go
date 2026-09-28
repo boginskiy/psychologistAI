@@ -8,30 +8,39 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
-	"github.com/boginskiy/psychologistAI/internal/api/request"
+	"github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
 
-	"github.com/boginskiy/psychologistAI/internal/models/response"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
 	"github.com/go-chi/chi"
 )
 
 type AuthHandler struct {
-	AuthService    service.AuthService
-	Cooker         cookie.Cooker
-	ResponseSender api.ResponseSender
-	basepath       string
+	AuthService service.AuthService
+	Cooker      cookie.Cooker
+	Responder   api.Responder
+	Requester   api.Requester
+	basepath    string
 }
 
-func NewAuthHandler(bpath string, authServ service.AuthService, resSender api.ResponseSender, cooker cookie.Cooker) *AuthHandler {
+func NewAuthHandler(
+	bpath string,
+	authServ service.AuthService,
+	responder api.Responder,
+	requester api.Requester,
+	cooker cookie.Cooker,
+) *AuthHandler {
+
 	return &AuthHandler{
-		AuthService:    authServ,
-		Cooker:         cooker,
-		ResponseSender: resSender,
-		basepath:       bpath,
+		AuthService: authServ,
+		Cooker:      cooker,
+		Responder:   responder,
+		Requester:   requester,
+		basepath:    bpath,
 	}
 }
 
@@ -57,45 +66,45 @@ func (h *AuthHandler) Logouter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &response.InfoResponse{}
-	refreshTokenRequest := &dto.RefreshTokenRequest{}
-
 	// Take cookie with refresh token
 	cookie, err := r.Cookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
+		// + logger
 		fmt.Println(fmt.Errorf("%s:%s", errs.ErrAuth, err))
-		infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
-		h.ResponseSender.SendResponse(w, infoResponse)
+
+		body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
+		h.Responder.SendResponse(w, body)
 	}
 
-	// Info current request
-	refreshTokenRequest.OS, refreshTokenRequest.Browser, refreshTokenRequest.Device = request.TakeDeviceInfo(r)
-	refreshTokenRequest.UserAgent = request.TakeUserAgent(r)
-	refreshTokenRequest.IP = request.TakeRealUserIP(r)
-	refreshTokenRequest.Token = cookie.Value
-
+	// Put Info from current request
+	refreshTokenReq := adapters.NewTokenReq(h.Requester, r, cookie)
 	// Service
-	newToken, err := h.AuthService.Refresh(r.Context(), refreshTokenRequest)
+	newToken, err := h.AuthService.Refresh(r.Context(), refreshTokenReq)
 
 	if err != nil {
+		body := &response.InfoBody{}
+		// + logger
+		fmt.Println(fmt.Errorf("%v", err))
+
 		switch {
+		// Credentials
 		case errors.Is(err, errs.ErrSession):
-			// + logger
-			infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
 
-		case errors.Is(err, errs.ErrUsingToken), errors.Is(err, errs.ErrLegitimacyUser),
-			errors.Is(err, errs.ErrTimeLiveSession), errors.Is(err, errs.ErrCompareToken):
-			// + logger
-			infoResponse.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+		case errors.Is(err, errs.ErrUsingToken), errors.Is(err, errs.ErrLegitimacyUser):
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
 
+		case errors.Is(err, errs.ErrTimeLiveSession), errors.Is(err, errs.ErrCompareToken):
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		// Server
 		case errors.Is(err, errs.ErrServer), errors.Is(err, errs.ErrUpdateDBAfterRefresh):
-			// + logger
-			infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
+			body.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
 
 		default:
-			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+			body = response.NewInfoBodyWithErr(err, http.StatusBadRequest)
 		}
-		h.ResponseSender.SendResponse(w, infoResponse)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
@@ -105,6 +114,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	oldCookie, err := h.Cooker.ClearCookie(cookie)
 	if err != nil {
 		// + logger
+		fmt.Println(fmt.Errorf("%v", err))
 	}
 
 	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, newToken.AccessToken)
@@ -113,63 +123,59 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	if err1 != nil || err2 != nil {
 		// + Logger
 		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
-		infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
-		h.ResponseSender.SendResponse(w, infoResponse)
+
+		body := response.NewInfoBodyWithErr(errs.ErrServer, http.StatusInternalServerError)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
 	// Response
-	h.ResponseSender.AddSetCookies(w, oldCookie, cookieAccessToken, cookieRefreshToken)
-	infoResponse.InfoUpdate(vars.MessOkLogin, http.StatusOK)
-	h.ResponseSender.SendResponse(w, infoResponse)
+	h.Responder.AddSetCookies(w, oldCookie, cookieAccessToken, cookieRefreshToken)
+	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
+	h.Responder.SendResponse(w, body)
 }
 
 func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
-	infoResponse := &response.InfoResponse{}
 	loginUser := &dto.LoginUser{}
 
 	// Read body
-	_, err := request.ReadAllRequestBody(r, loginUser)
+	_, err := h.Requester.ReadAllRequestBody(r, loginUser)
 	if err != nil {
-		infoResponse.ErrorUpdate(err, http.StatusBadRequest)
-		h.ResponseSender.SendResponse(w, infoResponse)
+		body := response.NewInfoBodyWithErr(err, http.StatusBadRequest)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
-	// Info current request
-	loginUser.OS, loginUser.Browser, loginUser.Device = request.TakeDeviceInfo(r)
-	loginUser.IP = request.TakeRealUserIP(r)
-	loginUser.UserAgent = request.TakeUserAgent(r)
-
+	// Put Info from current request
+	loginUser = adapters.UpdateLoginUserFromRequest(loginUser, h.Requester, r)
 	// Service
 	token, err := h.AuthService.Login(r.Context(), loginUser)
 
 	// Errors
 	if err != nil {
-
-		// Logger
-		// +err
+		body := &response.InfoBody{}
+		// + logger
+		fmt.Println(fmt.Errorf("%v", err))
 
 		switch {
 		// Credentials
 		case errors.Is(err, errs.ErrInvalidCredentials):
-			infoResponse.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
+			body.ErrorUpdate(errs.ErrInvalidCredentials, http.StatusUnauthorized)
 
 		// Verification
 		case errors.Is(err, errs.ErrVerification):
-			infoResponse.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
+			body.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
 		case errors.Is(err, errs.ErrAttemptsVerification):
-			infoResponse.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
+			body.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
 		// Server
 		case errors.Is(err, errs.ErrServer):
-			// errs.ErrServer
-			infoResponse.ErrorUpdate(err, http.StatusInternalServerError)
+			body.ErrorUpdate(err, http.StatusInternalServerError)
 
 		default:
-			infoResponse.ErrorUpdate(err, http.StatusBadRequest)
+			body.ErrorUpdate(err, http.StatusBadRequest)
 		}
-		h.ResponseSender.SendResponse(w, infoResponse)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
@@ -178,17 +184,18 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.RefreshToken)
 
 	if err1 != nil || err2 != nil {
-		// + Logger full error
+		// + Logger
 		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
-		infoResponse.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
-		h.ResponseSender.SendResponse(w, infoResponse)
+
+		body := response.NewInfoBodyWithErr(errs.ErrServer, http.StatusInternalServerError)
+		h.Responder.SendResponse(w, body)
 		return
 	}
 
 	// Response
-	h.ResponseSender.AddSetCookies(w, cookieAccessToken, cookieRefreshToken)
-	infoResponse.InfoUpdate(vars.MessOkLogin, http.StatusOK)
-	h.ResponseSender.SendResponse(w, infoResponse)
+	h.Responder.AddSetCookies(w, cookieAccessToken, cookieRefreshToken)
+	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
+	h.Responder.SendResponse(w, body)
 }
 
 // TODO:

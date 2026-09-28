@@ -6,7 +6,8 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/db"
 	"github.com/boginskiy/psychologistAI/internal/db/mapDB"
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
+
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/google/uuid"
 )
 
@@ -30,7 +31,7 @@ func (r *SessionRepo) IsActiveSession(sessionID string) bool {
 	return false
 }
 
-func (r *SessionRepo) UpdateAfterRefresh(newSession *models.Session, offset int) error {
+func (r *SessionRepo) UpdateAfterRefresh(newSession *domain.Session, offset int) error {
 	// TODO. Транзакцией сделать.
 	err := r.Create(newSession)
 	if err != nil {
@@ -83,7 +84,7 @@ func (r *SessionRepo) CancelSession(sessionID string) {
 	}
 }
 
-func (r *SessionRepo) Read(id string) (*models.Session, error) {
+func (r *SessionRepo) Read(id string) (*domain.Session, error) {
 	tb := r.DB.GetSessionTable()
 	for key, session := range tb {
 		if key == id {
@@ -93,7 +94,7 @@ func (r *SessionRepo) Read(id string) (*models.Session, error) {
 	return nil, fmt.Errorf("there is no session")
 }
 
-func (r *SessionRepo) Create(session *models.Session) error {
+func (r *SessionRepo) Create(session *domain.Session) error {
 	tb := r.DB.GetSessionTable()
 	tb[session.ID] = session
 	return nil

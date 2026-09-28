@@ -1,4 +1,4 @@
-package models
+package user
 
 import (
 	"crypto/subtle"
@@ -33,12 +33,6 @@ type User struct {
 	VerifiedAtVerifToken *time.Time `json:"verified_at_verif_token" db:"verified_at_verif_token"`
 	EmailVerified        bool       `json:"email_verified" db:"email_verified"`
 	Attempts             int        `json:"attempts" db:"attempts"`
-
-	// // Аутентификация пользователя. Need Table
-	// HashRefreshToken      []byte     `json:"hash_refresh_token" db:"hash_refresh_token"`
-	// Salt                  []byte     `json:"salt" db:"salt"`
-	// ExpiresAtRefreshToken *time.Time `json:"expires_at_refresh_token" db:"expires_at_refresh_token"`
-	// DeviceInfo            DeviceInfo `json:"device_info" db:"device_info"`
 }
 
 func NewUser(createUser *dto.CreateUser) (*User, error) {

@@ -5,7 +5,8 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/db"
 	"github.com/boginskiy/psychologistAI/internal/db/mapDB"
-	models "github.com/boginskiy/psychologistAI/internal/models/user"
+
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 )
 
 type UserRepo struct {
@@ -18,7 +19,7 @@ func NewUserRepo() *UserRepo {
 	}
 }
 
-func (r *UserRepo) ReadByEmail(email string) (*models.User, error) {
+func (r *UserRepo) ReadByEmail(email string) (*domain.User, error) {
 	userTb := r.DB.GetUserTable()
 	for e, user := range userTb {
 		if e == email {
@@ -28,7 +29,7 @@ func (r *UserRepo) ReadByEmail(email string) (*models.User, error) {
 	return nil, fmt.Errorf("user was not found")
 }
 
-func (r *UserRepo) ReadByToken(hashToken []byte) (*models.User, error) {
+func (r *UserRepo) ReadByToken(hashToken []byte) (*domain.User, error) {
 	userTb := r.DB.GetUserTable()
 	for _, user := range userTb {
 
@@ -39,7 +40,7 @@ func (r *UserRepo) ReadByToken(hashToken []byte) (*models.User, error) {
 	return nil, fmt.Errorf("user was not found")
 }
 
-func (r *UserRepo) UpdateItem(user *models.User) {
+func (r *UserRepo) UpdateItem(user *domain.User) {
 	userTb := r.DB.GetUserTable()
 	for email := range userTb {
 		if email == user.Email {
@@ -49,7 +50,7 @@ func (r *UserRepo) UpdateItem(user *models.User) {
 	}
 }
 
-func (r *UserRepo) Create(user *models.User) error {
+func (r *UserRepo) Create(user *domain.User) error {
 	userTb := r.DB.GetUserTable()
 
 	_, ok := userTb[user.Email]
