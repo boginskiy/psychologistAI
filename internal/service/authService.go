@@ -8,7 +8,9 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/errs"
+	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/security"
+	"github.com/boginskiy/psychologistAI/pkg/validservice"
 	"github.com/google/uuid"
 
 	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
@@ -17,12 +19,14 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
 
-const AttemptsCnt = 5 // Количество попыток для верификации пользователя
-const OffSet = 3      // Глубина удаления исторических сессией пользователя
+const Attempts = 5                    // Количество попыток для верификации пользователя
+const Retry = 3                       // Количество попыток для верификации пользователя
+const OffSet = 3                      // Глубина удаления исторических сессией пользователя
+const NameProject = "Psychologist AI" // Имя проекта
 
 type AuthServ struct {
-	Validater   Validater
-	Notifier    Notifier
+	Validater   validservice.Validater
+	Postman     emailservice.Postman
 	JWTManager  jwtservice.JWTManager
 	GeoSecurity security.GeoSecurity
 
@@ -32,8 +36,8 @@ type AuthServ struct {
 
 func NewAuthServ(
 	ctx context.Context,
-	validater Validater,
-	notifier Notifier,
+	validater validservice.Validater,
+	postman emailservice.Postman,
 	jwtManager jwtservice.JWTManager,
 	geoSecurity security.GeoSecurity,
 
@@ -42,7 +46,7 @@ func NewAuthServ(
 ) *AuthServ {
 	return &AuthServ{
 		Validater:   validater,
-		Notifier:    notifier,
+		Postman:     postman,
 		JWTManager:  jwtManager,
 		GeoSecurity: geoSecurity,
 
@@ -88,17 +92,16 @@ func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.TokenReq) (*dto
 }
 
 func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.TokenReq) (*dto.TokenPair, error) {
-	// TODO
-	// В мидлваре проверим подпись токена, и сделаем парсинг данных.
-	// Через контекст можно передать эти данные сюда на дальнейшую обработку
+	refreshClaim := &jwtservice.RefreshTokenClaim{}
 
-	// Допустим тут у нас есть данные распарсенные с Refresh токена
-	refreshTokenClaim := jwtservice.RefreshTokenClaim{}
-
-	// =================================================================================
+	_, err := s.JWTManager.CheckAndParseToken(config.SECRET_KEY_JWT_REFRESH_TOKEN, refreshTokenReq.Token, refreshClaim)
+	if err != nil {
+		// + logger
+		return nil, fmt.Errorf("%w: %w", errs.ErrAuth, err)
+	}
 
 	// Take last active session for current token
-	lastActiveSession, err := s.SessionRepo.Read(refreshTokenClaim.ID)
+	lastActiveSession, err := s.SessionRepo.Read(refreshClaim.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrSession, err)
 	}
@@ -136,9 +139,9 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.TokenReq) (
 
 	// Create new Tokens and Session
 	tokenPair, err := s.createTokenPair(
-		refreshTokenClaim.UserID,
-		refreshTokenClaim.UserName,
-		refreshTokenClaim.UserRoles)
+		refreshClaim.UserID,
+		refreshClaim.UserName,
+		refreshClaim.UserRoles)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
@@ -153,7 +156,7 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.TokenReq) (
 		refreshTokenReq.Browser,
 		refreshTokenReq.Device,
 		tokenPair.SessionExp,
-		refreshTokenClaim.UserID,
+		refreshClaim.UserID,
 	)
 
 	// Привязываем новую сессию к старой. Цепочка сессий.
@@ -209,7 +212,7 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 
 	// Verification
 	if !userDomain.CheckVerification() {
-		if userDomain.Attempts >= AttemptsCnt {
+		if userDomain.Attempts >= Attempts {
 			return nil, errs.ErrAttemptsVerification
 		}
 		userDomain.Attempts += 1
@@ -217,8 +220,14 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
-		s.UserRepo.UpdateItem(userDomain)               // Update user
-		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
+
+		// Update user
+		s.UserRepo.UpdateItem(userDomain)
+
+		// Create message and Send email to user
+		verifLetter := emailservice.NewVerifLetter(userDomain.Email, verificToken, NameProject)
+		s.Postman.Send(verifLetter, Retry)
+
 		return nil, errs.ErrVerification
 	}
 
@@ -272,23 +281,4 @@ func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole [
 		SessionID:    refreshClaim.ID,
 		SessionExp:   refreshClaim.ExpiresAt.Time,
 	}, nil
-}
-
-// =================================
-//
-//	Context Key
-//
-// =================================
-
-type ctxKey int
-
-const infoUserKey ctxKey = iota
-
-func SetInfoUserToContext(ctx context.Context, infoUser dto.InfoUser) context.Context {
-	return context.WithValue(ctx, infoUserKey, infoUser)
-}
-
-func GetInfoUserFromContext(ctx context.Context) (dto.InfoUser, bool) {
-	infoUser, ok := ctx.Value(infoUserKey).(dto.InfoUser)
-	return infoUser, ok
 }

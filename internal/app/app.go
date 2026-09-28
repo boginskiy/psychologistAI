@@ -14,10 +14,12 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
-	"github.com/boginskiy/psychologistAI/internal/service/infra"
+
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
+	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 	"github.com/boginskiy/psychologistAI/pkg/security"
+	"github.com/boginskiy/psychologistAI/pkg/validservice"
 )
 
 const PathCountryDB = "GeoLite2-Country.mmdb"
@@ -120,8 +122,8 @@ func (a *App) initCooker(ctx context.Context) error {
 
 func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
-	validater := infra.NewValidService(ctx)
-	notifier := infra.NewEmailServ(ctx)
+	validater := validservice.NewValidService(ctx)
+	postman := emailservice.NewEmailService(ctx)
 	jwtManager := jwtservice.NewJWTService()
 	requester := request.NewRequest()
 
@@ -130,8 +132,8 @@ func (a *App) initHandlers(ctx context.Context) error {
 	sessionRepo := userrepo.NewSessionRepo()
 
 	// Services
-	authService := service.NewAuthServ(ctx, validater, notifier, jwtManager, a.GeoChecker, userRepo, sessionRepo)
-	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
+	authService := service.NewAuthServ(ctx, validater, postman, jwtManager, a.GeoChecker, userRepo, sessionRepo)
+	userService := service.NewUserServ(ctx, validater, postman, userRepo, jwtManager)
 
 	// Handlers
 	authHandler := handlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)

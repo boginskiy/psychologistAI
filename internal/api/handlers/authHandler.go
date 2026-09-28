@@ -57,7 +57,6 @@ func (h *AuthHandler) Registration(r chi.Router, middleware middleware.HandleMid
 			r.Use(middleware.AuthMiddleware(h.AuthService))
 			r.Post("/logout", h.Logouter) // POST /auth/logout
 		})
-
 	})
 }
 

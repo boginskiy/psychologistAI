@@ -11,29 +11,31 @@ import (
 	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/boginskiy/psychologistAI/internal/repository"
 
+	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/hashpass"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
+	"github.com/boginskiy/psychologistAI/pkg/validservice"
 )
 
 // const AttemptsCnt = 5
 
 type UserServ struct {
-	Validater  Validater
-	Notifier   Notifier
+	Validater  validservice.Validater
+	Postman    emailservice.Postman
 	UserRepo   repository.UserRepo
 	JWTManager jwtservice.JWTManager
 }
 
 func NewUserServ(
 	ctx context.Context,
-	validater Validater,
-	notifier Notifier,
+	validater validservice.Validater,
+	postman emailservice.Postman,
 	userRepo repository.UserRepo,
 	jwtManager jwtservice.JWTManager,
 ) *UserServ {
 	return &UserServ{
 		Validater:  validater,
-		Notifier:   notifier,
+		Postman:    postman,
 		UserRepo:   userRepo,
 		JWTManager: jwtManager,
 	}
@@ -53,7 +55,7 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*domain.User
 	}
 
 	// Проверка количеств попыток, данные для верификации.
-	if userDomain.Attempts >= AttemptsCnt {
+	if userDomain.Attempts >= Attempts {
 		return nil, errs.ErrAttemptsVerification
 	}
 	userDomain.Attempts += 1
@@ -64,8 +66,13 @@ func (s *UserServ) Verification(ctx context.Context, token string) (*domain.User
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 		}
-		s.UserRepo.UpdateItem(userDomain)               // Update user
-		s.Notifier.Send(userDomain.Email, verificToken) // Send email to user
+
+		// Update user
+		s.UserRepo.UpdateItem(userDomain)
+
+		// Create message and Send email to user
+		verifLetter := emailservice.NewVerifLetter(userDomain.Email, verificToken, NameProject)
+		s.Postman.Send(verifLetter, Retry) // Send email to user
 
 		return nil, errs.ErrVerification
 	}
@@ -117,8 +124,9 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*dom
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
 	}
 
-	// Send email to ErrServeruser
-	s.Notifier.Send(userDomain.Email, verificToken)
+	// Create message and Send email to user
+	verifLetter := emailservice.NewVerifLetter(userDomain.Email, verificToken, NameProject)
+	s.Postman.Send(verifLetter, Retry)
 
 	return userDomain, nil
 }

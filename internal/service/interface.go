@@ -7,14 +7,6 @@ import (
 	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 )
 
-type Validater interface {
-	CheckNotEmptyStrField(name, field string) error
-}
-
-type Notifier interface {
-	Send(email, token string)
-}
-
 type AuthService interface {
 	Refresh(context.Context, *dto.TokenReq) (*dto.TokenPair, error)
 	Auth(context.Context, *dto.TokenReq) (*dto.InfoUser, error)

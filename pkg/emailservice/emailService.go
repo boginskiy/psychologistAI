@@ -1,4 +1,4 @@
-package infra
+package emailservice
 
 import (
 	"context"
@@ -28,13 +28,12 @@ const (
 	Link    = "http://localhost:8080/api/v1/user/verification/"
 )
 
-type EmailServ struct {
+type EmailService struct {
 	dialer *gomail.Dialer
-	retry  int
 	errCh  chan error
 }
 
-func NewEmailServ(ctx context.Context) *EmailServ {
+func NewEmailService(ctx context.Context) *EmailService {
 	d := gomail.NewDialer(
 		HostEmail,
 		PortEmail,
@@ -42,17 +41,16 @@ func NewEmailServ(ctx context.Context) *EmailServ {
 		Password,
 	)
 
-	tmpServ := &EmailServ{
+	tmpServ := &EmailService{
 		dialer: d,
-		retry:  Retry,
 		errCh:  make(chan error, 1),
 	}
 
-	go tmpServ.CatchingErrors(ctx)
+	go tmpServ.catchingErrors(ctx)
 	return tmpServ
 }
 
-func (s *EmailServ) CatchingErrors(ctx context.Context) {
+func (s *EmailService) catchingErrors(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -67,7 +65,7 @@ func (s *EmailServ) CatchingErrors(ctx context.Context) {
 	}
 }
 
-func (s *EmailServ) Send(email, token string) {
+func (s *EmailService) Send(MSGer Messager, retry int) {
 	go func() {
 		// Context
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -82,12 +80,13 @@ func (s *EmailServ) Send(email, token string) {
 			stop()
 		}()
 
-		if s.retry <= 0 {
+		if retry <= 0 {
 			s.sendError(fmt.Errorf("retry must be > 0"))
 			return
 		}
 
-		msg := s.CreateMess(email, token)
+		// Messager
+		msg := MSGer.GetMsg()
 		done := make(chan struct{}, 1)
 
 		go func() {
@@ -101,7 +100,7 @@ func (s *EmailServ) Send(email, token string) {
 			var lastErr error
 			delay := Delay
 
-			for i := 0; i < s.retry; i++ {
+			for i := 0; i < retry; i++ {
 				select {
 				case <-ctxTimeOut.Done():
 					s.sendError(fmt.Errorf("context cancelled before attempt %d", i+1))
@@ -113,7 +112,7 @@ func (s *EmailServ) Send(email, token string) {
 				if lastErr == nil {
 					return
 				}
-				if i == s.retry-1 {
+				if i == retry-1 {
 					break
 				}
 
@@ -131,7 +130,7 @@ func (s *EmailServ) Send(email, token string) {
 
 			// Если дошли сюда – все попытки провалились
 			if lastErr != nil {
-				s.sendError(fmt.Errorf("failed to send email after %d attempts: %w", s.retry, lastErr))
+				s.sendError(fmt.Errorf("failed to send email after %d attempts: %w", retry, lastErr))
 			}
 		}()
 
@@ -144,35 +143,10 @@ func (s *EmailServ) Send(email, token string) {
 	}()
 }
 
-func (s *EmailServ) sendError(err error) {
+func (s *EmailService) sendError(err error) {
 	select {
 	case s.errCh <- err:
 	default:
 		// Игнорируем ошибки, если переполнен канал.
 	}
-}
-
-func (s *EmailServ) CreateMess(ToEmail, token string) *gomail.Message {
-	msg := gomail.NewMessage()
-	msg.SetHeader("From", FromEmail)
-	msg.SetHeader("To", ToEmail)
-	msg.SetHeader("Subject", Subject)
-
-	// Ссылка
-	verifyLink := Link + token
-
-	// Текст письма с ссылкой для подтверждения
-	body := fmt.Sprintf(`
-    Здравствуйте!
-
-    Для подтверждения email перейдите по ссылке: %s
-
-    Если вы не регистрировались на нашем сайте, проигнорируйте это письмо.
-
-    С уважением,
-    Команда проекта 'Psychologist AI'
-	`, verifyLink)
-
-	msg.SetBody("text/plain", body)
-	return msg
 }

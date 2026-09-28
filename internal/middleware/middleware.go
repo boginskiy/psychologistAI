@@ -10,6 +10,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
+	"github.com/boginskiy/psychologistAI/internal/context"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/service"
 )
@@ -81,7 +82,7 @@ func (m *Middlew) AuthMiddleware(authService service.AuthService) func(http.Hand
 			}
 
 			// Context
-			newCtx := service.SetInfoUserToContext(r.Context(), *infoUser)
+			newCtx := context.SetInfoUserToContext(r.Context(), *infoUser)
 			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
