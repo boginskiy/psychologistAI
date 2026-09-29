@@ -5,7 +5,7 @@ import (
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/api"
-	"github.com/boginskiy/psychologistAI/internal/api/handlers"
+	apiHandlers "github.com/boginskiy/psychologistAI/internal/api/handlers"
 	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
@@ -14,6 +14,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
+	webHandlers "github.com/boginskiy/psychologistAI/internal/web/handlers"
 
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
 	"github.com/boginskiy/psychologistAI/pkg/emailservice"
@@ -135,13 +136,17 @@ func (a *App) initHandlers(ctx context.Context) error {
 	authService := service.NewAuthServ(ctx, validater, postman, jwtManager, a.GeoChecker, userRepo, sessionRepo)
 	userService := service.NewUserServ(ctx, validater, postman, userRepo, jwtManager)
 
-	// Handlers
-	authHandler := handlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
-	userHandler := handlers.NewUserHandler("/api/v1/user", userService, a.Responder, requester)
+	// API Handlers
+	authHandler := apiHandlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
+	userHandler := apiHandlers.NewUserHandler("/user", userService, a.Responder, requester)
 
-	// Router
-	a.Router.RegisterRoutes(userHandler)
-	a.Router.RegisterRoutes(authHandler)
+	// WEB Handlers
+	homeHandler := webHandlers.NewHomeHandler("/")
+
+	// Routers
+	a.Router.RegisterAPIRoutes("/api/v1", authHandler, userHandler)
+	a.Router.RegisterWEBRoutes("/", homeHandler)
+
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 )
 
 type Router interface {
-	RegisterRoutes(handlers ...handlers.Registrar) http.Handler
+	RegisterAPIRoutes(start string, handlers ...handlers.Registrar) http.Handler
+	RegisterWEBRoutes(start string, handlers ...handlers.Registrar) http.Handler
 	Run() http.Handler
 }

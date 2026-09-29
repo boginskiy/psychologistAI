@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -16,11 +15,11 @@ const (
 	TimeOut = 200 * time.Millisecond
 )
 
-func main() {
+// func main() {
 
-	for range 0 {
-		fmt.Println("ddd")
-	}
+// 	for range 0 {
+// 		fmt.Println("ddd")
+// 	}
 
-	// _ = db
-}
+// 	// _ = db
+// }

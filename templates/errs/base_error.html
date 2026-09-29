@@ -1,0 +1,39 @@
+{{define "base_error"}}
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{block "title" .}}Ошибка{{end}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
+</head>
+<body class="bg-base-200 min-h-screen flex items-center justify-center">
+
+    <div class="card w-96 bg-base-100 shadow-xl">
+        <div class="card-body text-center">
+
+            <!-- Крупная цифра кода -->
+            <div class="text-7xl font-bold text-primary mb-2">
+                {{block "code" .}}404{{end}}
+            </div>
+
+            <h2 class="card-title text-xl justify-center mb-2">
+                {{block "heading" .}}Что-то пошло не так{{end}}
+            </h2>
+
+            <p class="text-base-content/60 text-sm mb-6">
+                {{block "message" .}}Попробуйте позже.{{end}}
+            </p>
+
+            <div class="flex flex-col gap-2">
+                <a href="/" class="btn btn-primary w-full">На главную</a>
+                {{block "extra-actions" .}}{{end}}
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>
+{{end}}

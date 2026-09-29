@@ -1,0 +1,37 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+                 "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+*:focus-visible {
+    outline: 2px solid #4c6fe0;
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+.psychologai-btn {
+    background-color: #4c6fe0;
+    color: #ffffff;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    border-radius: 8px;
+    line-height: 1.25;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.psychologai-btn:hover {
+    background-color: #3f5fc9;
+    color: #ffffff;
+}
+
+.psychologai-btn:active {
+    background-color: #3552b3;
+}

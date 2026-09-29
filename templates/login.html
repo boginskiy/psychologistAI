@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
+</head>
+<body class="bg-base-200 min-h-screen flex items-center justify-center">
+
+    <div class="card w-96 bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">Вход</h2>
+
+            <form method="POST" action="/auth/login" class="flex flex-col gap-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Email</span>
+                    </label>
+                    <input type="email" name="email" 
+                           class="input input-bordered" 
+                           placeholder="you@example.com" required />
+                </div>
+
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">Пароль</span>
+                    </label>
+                    <input type="password" name="password" 
+                           class="input input-bordered" 
+                           placeholder="••••••••" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full mt-2">
+                    Войти
+                </button>
+            </form>
+
+            <div class="divider">или</div>
+
+            <a href="/registration" class="btn btn-outline btn-block">
+                Зарегистрироваться
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
+
+<!-- <label class="label cursor-pointer justify-start gap-2">
+    <input type="checkbox" class="checkbox checkbox-primary" />
+    <span class="label-text">Запомнить меня</span>
+</label>
+
+<button class="btn btn-error">Выйти</button> -->
