@@ -68,7 +68,10 @@ func (u *User) UpdateVerificationToken() (string, error) {
 		return "", err
 	}
 	u.HashVerifToken = hashpass.CreateBytesHashSHA256(verificToken)
-	tokenExpiresAt := time.Now().UTC().Add(config.LIVE_TIME_VARIFICATION_TOKEN)
+
+	timeMinute := time.Duration(config.LIVE_TIME_VARIFICATION_TOKEN) * time.Minute
+	tokenExpiresAt := time.Now().UTC().Add(timeMinute)
+
 	u.ExpiresAtVerifToken = &tokenExpiresAt
 	return verificToken, nil
 }

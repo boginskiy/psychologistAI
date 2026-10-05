@@ -19,7 +19,7 @@ type AccessTokenClaim struct {
 }
 
 func NewAccessTokenClaim(config ClaimConfig, refreshClaim *RefreshTokenClaim) *AccessTokenClaim {
-	timeDur := time.Duration(config.GetTimeLiveToken())
+	timeMinute := time.Duration(config.GetTimeLiveToken()) * time.Minute
 	now := time.Now()
 
 	return &AccessTokenClaim{
@@ -33,7 +33,7 @@ func NewAccessTokenClaim(config ClaimConfig, refreshClaim *RefreshTokenClaim) *A
 			Subject:   refreshClaim.UserID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(timeDur)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(timeMinute)),
 			// Audience: []string{"web-client", "mobile-app"},
 		},
 	}
@@ -49,7 +49,7 @@ type RefreshTokenClaim struct {
 }
 
 func NewRefreshTokenClaim(config ClaimConfig, tokenUser *TokenUser) *RefreshTokenClaim {
-	timeDur := time.Duration(config.GetTimeLiveToken())
+	timeMinute := time.Duration(config.GetTimeLiveToken()) * time.Minute
 	now := time.Now()
 
 	return &RefreshTokenClaim{
@@ -59,12 +59,12 @@ func NewRefreshTokenClaim(config ClaimConfig, tokenUser *TokenUser) *RefreshToke
 		TokenType: TokenTypeRefresh,
 
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.Must(uuid.NewV7()).String(),     // Уникальный номер этого конкретного токена (jti)
-			Issuer:    config.GetHostName(),                 // Кто выдал токен (рекомендуется заполнять)
-			Subject:   tokenUser.ID.String(),                // Идентификатор пользователя (sub)
-			IssuedAt:  jwt.NewNumericDate(now),              // Время выдачи
-			NotBefore: jwt.NewNumericDate(now),              // Время начала действия токена
-			ExpiresAt: jwt.NewNumericDate(now.Add(timeDur)), // Срок действия: токен станет невалидным через N минут
+			ID:        uuid.Must(uuid.NewV7()).String(),        // Уникальный номер этого конкретного токена (jti)
+			Issuer:    config.GetHostName(),                    // Кто выдал токен (рекомендуется заполнять)
+			Subject:   tokenUser.ID.String(),                   // Идентификатор пользователя (sub)
+			IssuedAt:  jwt.NewNumericDate(now),                 // Время выдачи
+			NotBefore: jwt.NewNumericDate(now),                 // Время начала действия токена
+			ExpiresAt: jwt.NewNumericDate(now.Add(timeMinute)), // Срок действия: токен станет невалидным через N минут
 			// Audience: []string{"web-client"},
 		},
 	}

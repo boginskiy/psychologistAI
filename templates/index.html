@@ -1,14 +1,9 @@
 {{define "header-actions"}}
-<a href="/"
+<a href="/login"
     style="background:#4c6fe0; color:#ffffff; min-width:115px; height:40px; padding:0 30px; border-radius:8px; font-family:'Poppins',sans-serif; font-size:15px; font-weight:400; letter-spacing:0.02em; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s;"
+    
     onmouseover="this.style.background='#1e3a5f'"
     onmouseout="this.style.background='#4c6fe0'">
-    BACK
+    {{.StatusAuth}}
 </a>
 {{end}}
-
-<!-- Крупная цифра -->
-{{define "title"}}500 — Ошибка сервера{{end}}
-{{define "code"}}500{{end}}
-{{define "heading"}}Внутренняя ошибка{{end}}
-{{define "message"}}Что-то сломалось на нашей стороне. Мы уже работаем над этим.{{end}}

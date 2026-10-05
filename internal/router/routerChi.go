@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
+	"github.com/boginskiy/psychologistAI/internal/api/response"
+	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
 	"github.com/boginskiy/psychologistAI/internal/web/renders"
 	"github.com/go-chi/chi"
@@ -29,14 +31,19 @@ func (c *RouterChi) Run() http.Handler {
 func (c *RouterChi) RegisterAPIRoutes(start string, handlers ...handlers.Registrar) http.Handler {
 	apiMux := chi.NewRouter()
 
-	apiMux.Route(start, func(r chi.Router) {
-		r.Use(c.Middleware.RecoveryMiddleware)
-		r.Use(c.Middleware.LoggingMiddleware)
+	apiMux.Use(c.Middleware.RecoveryMiddleware)
+	apiMux.Use(c.Middleware.LoggingMiddleware)
 
-		// API
-		for _, handler := range handlers {
-			handler.Registration(r, c.Middleware)
-		}
+	// API
+	for _, handler := range handlers {
+		handler.Registration(apiMux, c.Middleware)
+	}
+
+	// Not Found
+	apiMux.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		body := response.NewInfoBodyWithErr(errs.ErrRequest, http.StatusBadRequest)
+		Responder := response.NewResponse()
+		Responder.SendResponse(w, body)
 	})
 
 	c.Mux.Mount(start, apiMux)
@@ -46,19 +53,17 @@ func (c *RouterChi) RegisterAPIRoutes(start string, handlers ...handlers.Registr
 func (c *RouterChi) RegisterWEBRoutes(start string, handlers ...handlers.Registrar) http.Handler {
 	webMux := chi.NewRouter()
 
-	webMux.Route(start, func(r chi.Router) {
-		// r.Use(c.Middleware.RecoveryMiddleware)
-		// r.Use(c.Middleware.LoggingMiddleware)
+	webMux.Use(c.Middleware.RecoveryMiddleware)
+	webMux.Use(c.Middleware.LoggingMiddleware)
 
-		// WEB
-		for _, handler := range handlers {
-			handler.Registration(r, c.Middleware)
-		}
+	// WEB
+	for _, handler := range handlers {
+		handler.Registration(webMux, c.Middleware)
+	}
 
-		// Not Found
-		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-			renders.RenderError(w, "404", http.StatusNotFound, nil)
-		})
+	// Not Found
+	webMux.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		renders.RenderError(w, "404", http.StatusNotFound, nil)
 	})
 
 	c.Mux.Mount(start, webMux)

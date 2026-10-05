@@ -21,11 +21,9 @@ const (
 	FromEmail = "gophkeeper@gmail.com"
 	Password  = "upiplnvviujgnevc"
 
-	Subject = "Подтверждение email"
 	Retry   = 3
 	TimeOut = 5000 * time.Millisecond
 	Delay   = 50 * time.Millisecond
-	Link    = "http://localhost:8080/api/v1/user/verification/"
 )
 
 type EmailService struct {

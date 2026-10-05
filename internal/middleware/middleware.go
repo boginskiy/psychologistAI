@@ -8,6 +8,7 @@ import (
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/api"
+
 	"github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
@@ -53,7 +54,7 @@ func (m *Middlew) RecoveryMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (m *Middlew) AuthMiddleware(authService service.AuthService) func(http.Handler) http.Handler {
+func (m *Middlew) AuthApiMiddleware(authService service.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Cookie
@@ -88,7 +89,36 @@ func (m *Middlew) AuthMiddleware(authService service.AuthService) func(http.Hand
 	}
 }
 
-// Посмотреть, что с рефреш, отдельный метод мидвари?
-// Доделать рефреш
-// Делать далее /logout
-// Далее делаем анкету и продумываем фронт
+func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Cookie
+			cookie, err := r.Cookie(config.COOKIE_NAME_ACCESS_TOKEN)
+
+			if err != nil {
+				// + logger
+				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Put Info from current request
+			accessTokenReq := adapters.NewTokenReq(m.Requester, r, cookie)
+			// Service
+			infoUser, err := authService.Auth(r.Context(), accessTokenReq)
+
+			if err != nil {
+				// + logger
+				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Context
+			newCtx := request.SetInfoUserToContext(r.Context(), *infoUser)
+			next.ServeHTTP(w, r.WithContext(newCtx))
+		})
+	}
+}

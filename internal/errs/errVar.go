@@ -18,9 +18,15 @@ var (
 	ErrLegitimacyUser       = errors.New("user legitimacy check failed")
 	ErrUpdateDBAfterRefresh = errors.New("error updating database with a new session")
 
+	// Registration
+	ErrRegistr = errors.New("registration error")
+
 	// Session
 	ErrHistoricalSession = errors.New("historical session is missing")
 	ErrActiveSession     = errors.New("session is not active")
+
+	// Bad request
+	ErrRequest = errors.New("request error")
 
 	// Context
 	ErrInfoContext = errors.New("no information from context")

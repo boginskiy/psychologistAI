@@ -35,3 +35,34 @@ body {
 .psychologai-btn:active {
     background-color: #3552b3;
 }
+
+
+:root {
+    --content-width: 1300px;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;   /* ← ключевое */
+}
+
+.header-inner,
+.main-inner {
+    width: 100%;
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 0 24px;
+    box-sizing: border-box;
+}
+
+html {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+}
+
+html, body {
+    overflow-x: hidden;
+    width: 100%;
+}

@@ -1,11 +1,10 @@
-{{define "title"}}FRIEND{{end}}
+{{define "title"}}Регистрация — FRIEND{{end}}
 
 {{define "header-actions"}}
-<a href="/"
+<a href="/login"
     style="background:#4c6fe0; color:#ffffff; min-width:115px; height:40px; padding:0 30px; border-radius:8px; font-family:'Poppins',sans-serif; font-size:15px; font-weight:400; letter-spacing:0.02em; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; transition:background 0.15s;"
     onmouseover="this.style.background='#1e3a5f'"
     onmouseout="this.style.background='#4c6fe0'">
-    
     BACK
 </a>
 {{end}}
@@ -13,52 +12,68 @@
 {{define "content"}}
 <div class="card w-96 bg-base-100 shadow-xl">
     <div class="card-body">
-        <h2 class="card-title text-2xl mb-4">Вход</h2>
+        <h2 class="card-title text-2xl mb-4">Регистрация</h2>
 
-        <form method="POST" action="/login" class="flex flex-col gap-4">
+        <form method="POST" action="/user/registration" class="flex flex-col gap-4">
+
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Email</span>
+                    <span class="label-text">Email <span style="color:#e11d48;">*</span></span>
                 </label>
-                <input type="email" name="email" 
-                        class="input input-bordered" 
-                        placeholder="you@example.com" required />
+                <input type="email" name="email"
+                       class="input input-bordered"
+                       placeholder="you@example.com" required />
             </div>
 
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Пароль</span>
+                    <span class="label-text">Пароль <span style="color:#e11d48;">*</span></span>
                 </label>
-                <input type="password" name="password" 
-                        class="input input-bordered" 
-                        placeholder="••••••••" required />
+                <input type="password" name="password"
+                       class="input input-bordered"
+                       placeholder="••••••••" required minlength="8" />
             </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Имя</span>
+                </label>
+                <input type="text" name="name"
+                       class="input input-bordered"
+                       placeholder="Как к вам обращаться?" />
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Телефон</span>
+                </label>
+                <input type="tel" name="phone"
+                       class="input input-bordered"
+                       placeholder="+7 999 123-45-67" />
+            </div>
+
 
             <button type="submit" 
                 style="display:inline-flex; align-items:center; justify-content:center; width:100%; height:44px; background:#4c6fe0; color:#ffffff; border-radius:8px; font-family:'Poppins',sans-serif; font-size:15px; font-weight:500; text-decoration:none; transition:background 0.15s; box-sizing:border-box;"
                 onmouseover="this.style.background='#1e3a5f'"
                 onmouseout="this.style.background='#4c6fe0'">
-                Войти
+                Зарегистрироваться
             </button>
 
         </form>
 
-        <div class="divider">или</div>
+        <div class="divider">уже есть аккаунт?</div>
 
-        <a href="/user/registration"
+        <a href="/login"
             style="display:inline-flex; align-items:center; justify-content:center; width:100%; height:44px; background:transparent; border:1.5px solid #1e3a5f; color:#1e3a5f; border-radius:8px; font-family:'Poppins',sans-serif; font-size:15px; font-weight:500; cursor:pointer; transition:all 0.15s; box-sizing:border-box; text-decoration:none;"
             onmouseover="this.style.background='#1e3a5f'; this.style.color='#ffffff';"
             onmouseout="this.style.background='transparent'; this.style.color='#1e3a5f';">
-            Зарегистрироваться
+            Войти
         </a>
 
+        <!-- <a href="/login" class="btn btn-outline btn-block">
+            Войти
+        </a> -->
     </div>
 </div>
 {{end}}
-
-<!-- <label class="label cursor-pointer justify-start gap-2">
-    <input type="checkbox" class="checkbox checkbox-primary" />
-    <span class="label-text">Запомнить меня</span>
-</label>
-
-<button class="btn btn-error">Выйти</button> -->

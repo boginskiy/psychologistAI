@@ -23,9 +23,6 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/validservice"
 )
 
-const PathCountryDB = "GeoLite2-Country.mmdb"
-const PathASNDB = "GeoLite2-ASN.mmdb"
-
 type App struct {
 	Cfg  config.Config
 	Logg logger.Logger
@@ -88,7 +85,7 @@ func (a *App) initResponder(ctx context.Context) error {
 }
 
 func (a *App) initGeoChecker(ctx context.Context) error {
-	checker, err := security.NewGeoChecker(PathCountryDB, PathASNDB)
+	checker, err := security.NewGeoChecker(config.PathCountryDB, config.PathASNDB)
 	if err != nil {
 		return err
 	}
@@ -136,16 +133,20 @@ func (a *App) initHandlers(ctx context.Context) error {
 	authService := service.NewAuthServ(ctx, validater, postman, jwtManager, a.GeoChecker, userRepo, sessionRepo)
 	userService := service.NewUserServ(ctx, validater, postman, userRepo, jwtManager)
 
-	// API Handlers
-	authHandler := apiHandlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
-	userHandler := apiHandlers.NewUserHandler("/user", userService, a.Responder, requester)
+	// API Handlers v1
+	authAPIHandler := apiHandlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
+	userAPIHandler := apiHandlers.NewUserHandler("/user", userService, a.Responder, requester)
+	refreshAPIHandler := apiHandlers.NewRefreshHandler(authService, a.Responder, requester, a.Cooker)
+
+	a.Router.RegisterAPIRoutes("/api/"+config.VersionAPI, authAPIHandler, userAPIHandler)
+	a.Router.RegisterAPIRoutes("/refresh", refreshAPIHandler)
 
 	// WEB Handlers
-	homeHandler := webHandlers.NewHomeHandler("/")
+	userHandler := webHandlers.NewUserHandler("/user", userService)
+	authWEBHandler := webHandlers.NewAuthHandler(requester, a.Responder, authService, a.Cooker)
+	homeWEBHandler := webHandlers.NewHomeHandler(authService)
 
-	// Routers
-	a.Router.RegisterAPIRoutes("/api/v1", authHandler, userHandler)
-	a.Router.RegisterWEBRoutes("/", homeHandler)
+	a.Router.RegisterWEBRoutes("/", homeWEBHandler, authWEBHandler, userHandler)
 
 	return nil
 }

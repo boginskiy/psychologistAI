@@ -121,11 +121,14 @@ func (s *UserServ) Create(ctx context.Context, createUser *dto.CreateUser) (*dom
 	if err != nil {
 		// TODО, пока отправляем ошибку сервера, но в целом у пользователя может быть не уникальный email
 		// и тогда ему надо что то передать.
-		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
+		return nil, fmt.Errorf("%w: %w", errs.ErrRegistr, err)
 	}
 
+	// Path for verification user
+	verificationPath := createUser.VerificationLink + verificToken
+
 	// Create message and Send email to user
-	verifLetter := emailservice.NewVerifLetter(userDomain.Email, verificToken, NameProject)
+	verifLetter := emailservice.NewVerifLetter(userDomain.Email, verificationPath, NameProject)
 	s.Postman.Send(verifLetter, Retry)
 
 	return userDomain, nil

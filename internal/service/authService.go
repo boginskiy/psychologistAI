@@ -20,10 +20,10 @@ import (
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 )
 
-const Attempts = 5                    // Количество попыток для верификации пользователя
-const Retry = 3                       // Количество попыток для верификации пользователя
-const OffSet = 3                      // Глубина удаления исторических сессией пользователя
-const NameProject = "Psychologist AI" // Имя проекта
+const Attempts = 5               // Количество попыток для верификации пользователя
+const Retry = 3                  // Количество попыток для верификации пользователя
+const OffSet = 3                 // Глубина удаления исторических сессией пользователя
+const NameProject = "'A FRIEND'" // Имя проекта
 
 type AuthServ struct {
 	Validater   validservice.Validater

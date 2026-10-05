@@ -12,7 +12,8 @@ type InfraMiddleware interface {
 }
 
 type HandleMiddleware interface {
-	AuthMiddleware(service service.AuthService) func(http.Handler) http.Handler
+	AuthApiMiddleware(service service.AuthService) func(http.Handler) http.Handler
+	AuthWebMiddleware(service service.AuthService) func(http.Handler) http.Handler
 }
 
 type Middleware interface {

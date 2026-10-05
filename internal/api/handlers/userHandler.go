@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
-	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
+	"github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
@@ -17,8 +17,6 @@ import (
 
 	"github.com/go-chi/chi"
 )
-
-const Token = "token"
 
 type UserHandler struct {
 	UserService service.UserService
@@ -60,7 +58,7 @@ func (h *UserHandler) Registration(r chi.Router, middleware middleware.HandleMid
 
 func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 	body := &response.InfoBody{}
-	token := chi.URLParam(r, Token)
+	token := chi.URLParam(r, "token")
 
 	// Service
 	_, err := h.UserService.Verification(r.Context(), token)
@@ -94,12 +92,9 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 	h.Responder.SendResponse(w, body)
 }
 
-// Убрать из сервиса подготовку user Response и перенести ее сюда
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	createUser, err := adapters.ToCreateUserFromRequest(r)
 	body := &response.InfoBody{}
-	createUser := &dto.CreateUser{}
-
-	_, err := h.Requester.ReadAllRequestBody(r, createUser)
 
 	if err != nil {
 		body.ErrorUpdate(err, http.StatusBadRequest)

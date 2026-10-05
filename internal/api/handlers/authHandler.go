@@ -8,6 +8,7 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
+
 	"github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
@@ -48,13 +49,13 @@ func (h *AuthHandler) Registration(r chi.Router, middleware middleware.HandleMid
 	r.Route(h.basepath, func(r chi.Router) {
 		// Public
 		r.Group(func(r chi.Router) {
-			r.Post("/login", h.Loginer)     // POST /auth/login
-			r.Post("/refresh", h.Refresher) // POST /auth/refresh
+			r.Post("/login", h.Loginer) // POST /auth/login
+			// r.Post("/refresh", h.Refresher) // POST /auth/refresh
 		})
 
 		// Need Auth
 		r.Group(func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(h.AuthService))
+			r.Use(middleware.AuthApiMiddleware(h.AuthService))
 			r.Get("/logout", h.Logouter) // POST /auth/logout
 		})
 	})

@@ -6,16 +6,18 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
+const Subject = "Подтверждение email"
+
 type VerifLetter struct {
 	Email       string
-	Token       string
+	VerifyPath  string
 	NameProject string
 }
 
-func NewVerifLetter(email, token, nameProject string) *VerifLetter {
+func NewVerifLetter(email, verifyPath, nameProject string) *VerifLetter {
 	return &VerifLetter{
 		Email:       email,
-		Token:       token,
+		VerifyPath:  verifyPath,
 		NameProject: nameProject,
 	}
 }
@@ -25,9 +27,6 @@ func (v *VerifLetter) GetMsg() *gomail.Message {
 	msg.SetHeader("From", FromEmail)
 	msg.SetHeader("To", v.Email)
 	msg.SetHeader("Subject", Subject)
-
-	// Ссылка
-	verifyLink := Link + v.Token
 
 	// Текст письма с ссылкой для подтверждения
 	body := fmt.Sprintf(`
@@ -39,7 +38,7 @@ func (v *VerifLetter) GetMsg() *gomail.Message {
 
     С уважением,
     Команда проекта '%s'
-	`, verifyLink, v.NameProject)
+	`, v.VerifyPath, v.NameProject)
 
 	msg.SetBody("text/plain", body)
 	return msg
