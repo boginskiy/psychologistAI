@@ -2,37 +2,35 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"text/template"
 
-	"github.com/boginskiy/psychologistAI/cmd/config"
+	"github.com/boginskiy/psychologistAI/internal/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	adaptersApi "github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
 	"github.com/boginskiy/psychologistAI/internal/service"
-	"github.com/boginskiy/psychologistAI/internal/web/adapters"
 	adaptersWeb "github.com/boginskiy/psychologistAI/internal/web/adapters"
 	"github.com/boginskiy/psychologistAI/internal/web/renders"
-	"github.com/boginskiy/psychologistAI/pkg/cookie"
+	"github.com/boginskiy/psychologistAI/pkg/cooker"
 	"github.com/go-chi/chi"
 )
 
 type AuthHandler struct {
 	Requester   api.Requester
 	Responder   api.Responder
-	Cooker      cookie.Cooker
+	Cooker      cooker.Cooker
 	AuthService service.AuthService
 }
 
-func NewAuthHandler(requester api.Requester, responder api.Responder, authService service.AuthService, cookie cookie.Cooker) *AuthHandler {
+func NewAuthHandler(requester api.Requester, responder api.Responder, authService service.AuthService, cooker cooker.Cooker) *AuthHandler {
 	return &AuthHandler{
 		Requester:   requester,
 		Responder:   responder,
 		AuthService: authService,
-		Cooker:      cookie,
+		Cooker:      cooker,
 	}
 }
 
@@ -68,12 +66,11 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	// Put Info from current request
 	loginUser = adaptersApi.UpdateLoginUserFromRequest(loginUser, h.Requester, r)
 	// Service
-	token, err := h.AuthService.Login(r.Context(), loginUser)
+	tokenPair, err := h.AuthService.Login(r.Context(), loginUser)
 
 	// Errors
 	if err != nil {
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
+		log.Printf("error: %v\n", err) // + logger
 
 		switch {
 		// Credentials
@@ -98,35 +95,17 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cookies
-	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, token.AccessToken)
-	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.RefreshToken)
 
-	if err1 != nil || err2 != nil {
-		// + Logger
-		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
+	// Create cookie with tokens
+	cookiePair, err := adapters.FromTokenPair(h.Cooker, tokenPair)
+	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
 
 		renders.RenderError(w, "500", http.StatusInternalServerError, nil)
 		return
 	}
 
 	// Response
-	h.Responder.AddSetCookies(w, cookieAccessToken, cookieRefreshToken)
-
-	startTemplate := adapters.ToMapStartTemplate(true)
-
-	tmpl, err := template.ParseFiles(
-		"templates/base.html",
-		"templates/index.html",
-		"templates/chat.html",
-	)
-
-	if err != nil {
-		// + logger
-		log.Printf("template error: %v", err)
-
-		renders.RenderError(w, "500", http.StatusInternalServerError, nil)
-		return
-	}
-
-	tmpl.ExecuteTemplate(w, "base", startTemplate)
+	h.Responder.AddSetCookies(w, cookiePair.Access, cookiePair.Refresh)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

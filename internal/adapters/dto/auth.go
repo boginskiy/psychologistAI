@@ -1,26 +1,9 @@
 package dto
 
-import "time"
-
-// // RefreshTokenRequest - DTO для refresh token
-// type RefreshTokenReq struct {
-// 	Token     string
-// 	IP        string
-// 	UserAgent string
-// 	OS        string
-// 	Browser   string
-// 	Device    string
-// }
-
-// // AccessTokenRequest - DTO для access token
-// type AccessTokenReq struct {
-// 	Token     string
-// 	IP        string
-// 	UserAgent string
-// 	OS        string
-// 	Browser   string
-// 	Device    string
-// }
+import (
+	"net/http"
+	"time"
+)
 
 // TokenReq - DTO
 type TokenReq struct {
@@ -38,4 +21,10 @@ type TokenPair struct {
 	RefreshToken string    `json:"refresh_token"`
 	SessionID    string    `json:"session_id"`  // Или "jti" / "sid", если sessionID совпадает с jti refresh-токена
 	SessionExp   time.Time `json:"session_exp"` // Время жизни refresh token и соответственно session
+}
+
+// CookiePair - DTO
+type CookiePair struct {
+	Access  *http.Cookie
+	Refresh *http.Cookie
 }

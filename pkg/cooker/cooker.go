@@ -1,22 +1,19 @@
-package cookie
+package cooker
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 )
 
-var ErrConfigCookie = fmt.Errorf("no config for cookie")
-
-type Cookies struct {
+type CookieManager struct {
 	MapConfig map[string]Config
 }
 
-func NewCookies(configs ...Config) *Cookies {
+func NewCookieManager(configs ...Config) *CookieManager {
 	mapConfig := make(map[string]Config, 10)
 
 	if len(configs) == 0 {
-		return &Cookies{MapConfig: mapConfig}
+		return &CookieManager{MapConfig: mapConfig}
 	}
 
 	for _, config := range configs {
@@ -29,11 +26,11 @@ func NewCookies(configs ...Config) *Cookies {
 			Secure:   config.Secure,
 		}
 	}
-	return &Cookies{MapConfig: mapConfig}
+	return &CookieManager{MapConfig: mapConfig}
 }
 
 // Обновляем config для Cookie
-func (c *Cookies) UpdateConfigCookie(config Config) {
+func (c *CookieManager) UpdateConfigCookie(config Config) {
 	c.MapConfig[config.Name] = Config{
 		Name:     config.Name,
 		Path:     config.Path,     // Кука будет отправляться на все пути сайта
@@ -46,7 +43,7 @@ func (c *Cookies) UpdateConfigCookie(config Config) {
 	}
 }
 
-func (c *Cookies) CreateCookie(configName, value string) (*http.Cookie, error) {
+func (c *CookieManager) CreateCookie(configName, value string) (*http.Cookie, error) {
 	if config, ok := c.MapConfig[configName]; ok {
 		return &http.Cookie{
 			Name:     config.Name,
@@ -62,7 +59,7 @@ func (c *Cookies) CreateCookie(configName, value string) (*http.Cookie, error) {
 	return nil, ErrConfigCookie
 }
 
-func (c *Cookies) ClearCookie(nameCookie string) (*http.Cookie, error) {
+func (c *CookieManager) ClearCookie(nameCookie string) (*http.Cookie, error) {
 	if config, ok := c.MapConfig[nameCookie]; ok {
 		return &http.Cookie{
 			Name:     config.Name,
@@ -78,6 +75,6 @@ func (c *Cookies) ClearCookie(nameCookie string) (*http.Cookie, error) {
 	return nil, ErrConfigCookie
 }
 
-func (c *Cookies) transferIntToTime(tm int) time.Time {
+func (c *CookieManager) transferIntToTime(tm int) time.Time {
 	return time.Now().Add(time.Duration(tm) * time.Minute)
 }

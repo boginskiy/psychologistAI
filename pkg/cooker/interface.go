@@ -1,4 +1,4 @@
-package cookie
+package cooker
 
 import "net/http"
 

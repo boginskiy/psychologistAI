@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -60,8 +59,7 @@ func (m *Middlew) AuthApiMiddleware(authService service.AuthService) func(http.H
 			// Cookie
 			cookie, err := r.Cookie(config.COOKIE_NAME_ACCESS_TOKEN)
 			if err != nil {
-				// + logger
-				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
 				m.Responder.SendResponse(w, body)
@@ -74,8 +72,7 @@ func (m *Middlew) AuthApiMiddleware(authService service.AuthService) func(http.H
 			infoUser, err := authService.Auth(r.Context(), accessTokenReq)
 
 			if err != nil {
-				// + logger
-				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
 				m.Responder.SendResponse(w, body)
@@ -96,8 +93,7 @@ func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.H
 			cookie, err := r.Cookie(config.COOKIE_NAME_ACCESS_TOKEN)
 
 			if err != nil {
-				// + logger
-				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				next.ServeHTTP(w, r)
 				return
@@ -109,8 +105,7 @@ func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.H
 			infoUser, err := authService.Auth(r.Context(), accessTokenReq)
 
 			if err != nil {
-				// + logger
-				fmt.Println(fmt.Errorf("%v:%v", errs.ErrAuth, err))
+				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				next.ServeHTTP(w, r)
 				return

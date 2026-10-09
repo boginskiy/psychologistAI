@@ -34,7 +34,8 @@ func (s *JWTService) CheckAndParseToken(secretKey string, tokenString string, cl
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
-		return secretKey, nil
+		key := []byte(secretKey)
+		return key, nil
 	})
 
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/service"
 	webHandlers "github.com/boginskiy/psychologistAI/internal/web/handlers"
 
-	"github.com/boginskiy/psychologistAI/pkg/cookie"
+	"github.com/boginskiy/psychologistAI/pkg/cooker"
 	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
 	"github.com/boginskiy/psychologistAI/pkg/security"
@@ -29,7 +29,7 @@ type App struct {
 
 	Responder api.Responder
 	Requester api.Requester
-	Cooker    cookie.Cooker
+	Cooker    cooker.Cooker
 	Server    server.Server
 	Router    router.Router
 
@@ -95,7 +95,7 @@ func (a *App) initGeoChecker(ctx context.Context) error {
 
 func (a *App) initCooker(ctx context.Context) error {
 	// Add default config for cookie with  Access Token
-	configAccessToken := cookie.Config{
+	configAccessToken := cooker.Config{
 		Name:     config.COOKIE_NAME_ACCESS_TOKEN,
 		Expires:  config.COOKIE_EXPIRES_ACCESS_TOKEN,
 		MaxAge:   config.COOKIE_MAX_AGE_ACCESS_TOKEN,
@@ -105,7 +105,7 @@ func (a *App) initCooker(ctx context.Context) error {
 	}
 
 	// Add default config for cookie with  Refresh Token
-	configRefreshToken := cookie.Config{
+	configRefreshToken := cooker.Config{
 		Name:     config.COOKIE_NAME_REFRESH_TOKEN,
 		Expires:  config.COOKIE_EXPIRES_REFRESH_TOKEN,
 		MaxAge:   config.COOKIE_MAX_AGE_REFRESH_TOKEN,
@@ -114,7 +114,7 @@ func (a *App) initCooker(ctx context.Context) error {
 		Secure:   config.COOKIE_SECURE_REFRESH_TOKEN,
 	}
 
-	a.Cooker = cookie.NewCookies(configAccessToken, configRefreshToken)
+	a.Cooker = cooker.NewCookieManager(configAccessToken, configRefreshToken)
 	return nil
 }
 

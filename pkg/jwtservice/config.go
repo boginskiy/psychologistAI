@@ -6,7 +6,10 @@ type ClaimConf struct {
 }
 
 func NewClaimConfig(timeLiveToken int, hostName string) *ClaimConf {
-	return &ClaimConf{}
+	return &ClaimConf{
+		TimeLiveToken: timeLiveToken,
+		HostName:      hostName,
+	}
 }
 
 func (c *ClaimConf) GetTimeLiveToken() int {

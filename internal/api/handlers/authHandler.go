@@ -2,27 +2,28 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/api"
+	"github.com/boginskiy/psychologistAI/pkg/cooker"
 
-	"github.com/boginskiy/psychologistAI/internal/api/adapters"
+	"github.com/boginskiy/psychologistAI/internal/adapters"
+	adaptersAPI "github.com/boginskiy/psychologistAI/internal/api/adapters"
 	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
 
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
-	"github.com/boginskiy/psychologistAI/pkg/cookie"
 	"github.com/go-chi/chi"
 )
 
 type AuthHandler struct {
 	AuthService service.AuthService
-	Cooker      cookie.Cooker
+	Cooker      cooker.Cooker
 	Responder   api.Responder
 	Requester   api.Requester
 	basepath    string
@@ -33,7 +34,7 @@ func NewAuthHandler(
 	authServ service.AuthService,
 	responder api.Responder,
 	requester api.Requester,
-	cooker cookie.Cooker,
+	cooker cooker.Cooker,
 ) *AuthHandler {
 
 	return &AuthHandler{
@@ -73,8 +74,7 @@ func (h *AuthHandler) Logouter(w http.ResponseWriter, r *http.Request) {
 	// Cookies
 	oldCookie, err := h.Cooker.ClearCookie(config.COOKIE_NAME_ACCESS_TOKEN)
 	if err != nil {
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
+		log.Printf("error: %v\n", err) // + logger
 	}
 
 	// Response
@@ -87,8 +87,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	// Take cookie with refresh token
 	cookie, err := r.Cookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
-		// + logger
-		fmt.Println(fmt.Errorf("%s:%s", errs.ErrAuth, err))
+		log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 		body := response.NewInfoBodyWithErr(errs.ErrAuth, http.StatusUnauthorized)
 		h.Responder.SendResponse(w, body)
@@ -96,14 +95,14 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Put Info from current request
-	refreshTokenReq := adapters.NewTokenReq(h.Requester, r, cookie)
+	refreshTokenReq := adaptersAPI.NewTokenReq(h.Requester, r, cookie)
 	// Service
-	newToken, err := h.AuthService.Refresh(r.Context(), refreshTokenReq)
+	tokenPair, err := h.AuthService.Refresh(r.Context(), refreshTokenReq)
 
 	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
+
 		body := &response.InfoBody{}
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
 
 		switch {
 		// Credentials
@@ -129,19 +128,16 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 
 	// Cookies
 
-	// Обнуляем текущий  cookie
+	// Zeroing out cookie
 	oldCookie, err := h.Cooker.ClearCookie(config.COOKIE_NAME_REFRESH_TOKEN)
 	if err != nil {
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
+		log.Printf("error: %v\n", err) // + logger
 	}
 
-	cookieAccessToken, err1 := h.Cooker.CreateCookie(config.COOKIE_NAME_ACCESS_TOKEN, newToken.AccessToken)
-	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, newToken.RefreshToken)
-
-	if err1 != nil || err2 != nil {
-		// + Logger
-		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
+	// Create cookie with tokens
+	cookiePair, err := adapters.FromTokenPair(h.Cooker, tokenPair)
+	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
 
 		body := response.NewInfoBodyWithErr(errs.ErrServer, http.StatusInternalServerError)
 		h.Responder.SendResponse(w, body)
@@ -149,7 +145,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Response
-	h.Responder.AddSetCookies(w, oldCookie, cookieAccessToken, cookieRefreshToken)
+	h.Responder.AddSetCookies(w, oldCookie, cookiePair.Access, cookiePair.Refresh)
 	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
@@ -166,15 +162,15 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Put Info from current request
-	loginUser = adapters.UpdateLoginUserFromRequest(loginUser, h.Requester, r)
+	loginUser = adaptersAPI.UpdateLoginUserFromRequest(loginUser, h.Requester, r)
 	// Service
 	token, err := h.AuthService.Login(r.Context(), loginUser)
 
 	// Errors
 	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
+
 		body := &response.InfoBody{}
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
 
 		switch {
 		// Credentials
@@ -203,8 +199,7 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	cookieRefreshToken, err2 := h.Cooker.CreateCookie(config.COOKIE_NAME_REFRESH_TOKEN, token.RefreshToken)
 
 	if err1 != nil || err2 != nil {
-		// + Logger
-		fmt.Println(fmt.Errorf("%s:%s:%s", errs.ErrServer, err1, err2))
+		log.Printf("error: %s:%s:%s\n", errs.ErrServer, err1, err2) // + logger
 
 		body := response.NewInfoBodyWithErr(errs.ErrServer, http.StatusInternalServerError)
 		h.Responder.SendResponse(w, body)

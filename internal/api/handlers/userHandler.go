@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
@@ -65,8 +65,7 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 
 	// Errors
 	if err != nil {
-		// + logger
-		fmt.Println(fmt.Errorf("%v", err))
+		log.Printf("error: %v\n", err) // + logger
 
 		switch {
 		// Verification

@@ -1,4 +1,4 @@
-package cookie
+package cooker
 
 type Config struct {
 	Name     string //
