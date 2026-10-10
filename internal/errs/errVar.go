@@ -36,4 +36,11 @@ var (
 
 	// Server
 	ErrServer = errors.New("server error")
+
+	// Chat
+	ErrEmptyContent = errors.New("request with an empty message")
+	ErrReadChat     = errors.New("error reading the chat history")
+
+	// AI Client
+	ErrAIResponse = errors.New("bad response from AI Client")
 )

@@ -32,7 +32,8 @@ type UpdateUser struct {
 // InfoUser - DTO информация о пользователе
 type InfoUser struct {
 	UserID    uuid.UUID `json:"uid" db:"uid"`
-	UserRoles []string  `json:"roles" db:"roles"`
+	UserRole  string    `json:"role" db:"roles"`
 	TokenType string    `json:"type" db:"type"`
 	SessionID string    `json:"session_id" db:"session_id"`
+	Message   string    `json:"message" db:"message"`
 }

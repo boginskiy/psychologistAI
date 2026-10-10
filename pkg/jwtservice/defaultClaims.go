@@ -12,7 +12,7 @@ const TokenTypeRefresh = "refresh"
 
 type AccessTokenClaim struct {
 	UserID               uuid.UUID `json:"uid"`        // Краткий ключ экономит байты в заголовке HTTP
-	UserRoles            []string  `json:"roles"`      // Права доступа (RBAC)
+	UserRole             string    `json:"role"`       // Права доступа (RBAC)
 	TokenType            string    `json:"type"`       // "access"
 	SessionID            string    `json:"session_id"` // jti из refresh token, чтобы связать их
 	jwt.RegisteredClaims           // Стандартные поля JWT
@@ -24,7 +24,7 @@ func NewAccessTokenClaim(config ClaimConfig, refreshClaim *RefreshTokenClaim) *A
 
 	return &AccessTokenClaim{
 		UserID:    refreshClaim.UserID,
-		UserRoles: refreshClaim.UserRoles,
+		UserRole:  refreshClaim.UserRole,
 		TokenType: TokenTypeAccess,
 		SessionID: refreshClaim.ID,
 
@@ -41,10 +41,10 @@ func NewAccessTokenClaim(config ClaimConfig, refreshClaim *RefreshTokenClaim) *A
 
 // RefreshTokenClaim Default
 type RefreshTokenClaim struct {
-	UserID               uuid.UUID `json:"uid"`   // Subject — идентификатор владельца (лучше называть UserID для ясности)
-	UserName             string    `json:"name"`  // Имя пользователя (для отображения без доп. запросов к БД)
-	UserRoles            []string  `json:"roles"` // Роли (Scope/Permissions). Слайс позволяет иметь RBAC.
-	TokenType            string    `json:"type"`  // "refresh" — чтобы отличать от access token
+	UserID               uuid.UUID `json:"uid"`  // Subject — идентификатор владельца (лучше называть UserID для ясности)
+	UserName             string    `json:"name"` // Имя пользователя (для отображения без доп. запросов к БД)
+	UserRole             string    `json:"role"` // Роли (Scope/Permissions). Слайс позволяет иметь RBAC.
+	TokenType            string    `json:"type"` // "refresh" — чтобы отличать от access token
 	jwt.RegisteredClaims           // Вложенная анонимная структура со стандартными полями
 }
 
@@ -55,7 +55,7 @@ func NewRefreshTokenClaim(config ClaimConfig, tokenUser *TokenUser) *RefreshToke
 	return &RefreshTokenClaim{
 		UserID:    tokenUser.ID,
 		UserName:  tokenUser.Name,
-		UserRoles: tokenUser.Role,
+		UserRole:  tokenUser.Role,
 		TokenType: TokenTypeRefresh,
 
 		RegisteredClaims: jwt.RegisteredClaims{

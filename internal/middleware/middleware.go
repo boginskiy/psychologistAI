@@ -80,7 +80,7 @@ func (m *Middlew) AuthApiMiddleware(authService service.AuthService) func(http.H
 			}
 
 			// Context
-			newCtx := request.SetInfoUserToContext(r.Context(), *infoUser)
+			newCtx := request.SetInfoUserToContext(r.Context(), infoUser)
 			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
@@ -112,7 +112,7 @@ func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.H
 			}
 
 			// Context
-			newCtx := request.SetInfoUserToContext(r.Context(), *infoUser)
+			newCtx := request.SetInfoUserToContext(r.Context(), infoUser)
 			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}

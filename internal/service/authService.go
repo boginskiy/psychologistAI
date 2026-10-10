@@ -95,7 +95,7 @@ func (s *AuthServ) Auth(ctx context.Context, accessTokenReq *dto.TokenReq) (*dto
 
 	infoUser := &dto.InfoUser{
 		UserID:    accessClaim.UserID,
-		UserRoles: accessClaim.UserRoles,
+		UserRole:  accessClaim.UserRole,
 		TokenType: accessClaim.TokenType,
 		SessionID: accessClaim.SessionID,
 	}
@@ -152,7 +152,7 @@ func (s *AuthServ) Refresh(ctx context.Context, refreshTokenReq *dto.TokenReq) (
 	tokenPair, err := s.createTokenPair(
 		refreshClaim.UserID,
 		refreshClaim.UserName,
-		refreshClaim.UserRoles)
+		refreshClaim.UserRole)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errs.ErrServer, err)
@@ -264,7 +264,7 @@ func (s *AuthServ) Login(ctx context.Context, loginUser *dto.LoginUser) (*dto.To
 	return tokenPair, nil
 }
 
-func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole []string) (*dto.TokenPair, error) {
+func (s *AuthServ) createTokenPair(userID uuid.UUID, userName string, userRole string) (*dto.TokenPair, error) {
 	configRefresh := jwtservice.NewClaimConfig(
 		config.TIME_LIVE_JWT_REFRESH_TOKEN,
 		config.HOST_NAME,

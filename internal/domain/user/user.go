@@ -19,7 +19,7 @@ type User struct {
 	Phone        string    `json:"phone,omitempty" db:"phone"`
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	IsAdmin      bool      `json:"is_admin" db:"is_admin"`
-	Role         []string  `json:"role" db:"role"` // user, admin, moderator
+	Role         string    `json:"role" db:"role"` // user, admin
 
 	// Временные метки
 	CreatedAt      *time.Time `json:"created_at" db:"created_at"`
@@ -49,7 +49,7 @@ func NewUser(createUser *dto.CreateUser) (*User, error) {
 		HashPassword:         hashPassword,
 		Name:                 createUser.Name,
 		Phone:                createUser.Phone,
-		Role:                 []string{"user"},
+		Role:                 "user",
 		CreatedAt:            &timeNow,
 		UpdatedAt:            &timeNow,
 		VerifiedAtVerifToken: nil,

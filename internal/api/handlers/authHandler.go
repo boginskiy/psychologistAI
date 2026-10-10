@@ -12,9 +12,9 @@ import (
 
 	"github.com/boginskiy/psychologistAI/internal/adapters"
 	adaptersAPI "github.com/boginskiy/psychologistAI/internal/api/adapters"
-	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/msgs"
 
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -79,7 +79,7 @@ func (h *AuthHandler) Logouter(w http.ResponseWriter, r *http.Request) {
 
 	// Response
 	h.Responder.AddSetCookies(w, oldCookie)
-	body := response.NewInfoBody(vars.MessOkLogout, http.StatusOK)
+	body := response.NewInfoBody(msgs.MessOkLogout, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
 
@@ -146,7 +146,7 @@ func (h *AuthHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 
 	// Response
 	h.Responder.AddSetCookies(w, oldCookie, cookiePair.Access, cookiePair.Refresh)
-	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
+	body := response.NewInfoBody(msgs.MessOkLogin, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
 
@@ -179,7 +179,7 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 		// Verification
 		case errors.Is(err, errs.ErrVerification):
-			body.InfoUpdate(vars.MessNeedVerifyAccount, http.StatusForbidden)
+			body.InfoUpdate(msgs.MessNeedVerifyAccount, http.StatusForbidden)
 		case errors.Is(err, errs.ErrAttemptsVerification):
 			body.ErrorUpdate(errs.ErrAttemptsVerification, http.StatusTooManyRequests)
 
@@ -208,6 +208,6 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 
 	// Response
 	h.Responder.AddSetCookies(w, cookieAccessToken, cookieRefreshToken)
-	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
+	body := response.NewInfoBody(msgs.MessOkLogin, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }

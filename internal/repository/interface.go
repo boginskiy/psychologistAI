@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/boginskiy/psychologistAI/internal/domain/chat"
 	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 	"github.com/google/uuid"
 )
@@ -43,4 +44,11 @@ type SessionRepo interface {
 	IsActiveSession(sessionID string) bool
 	CancelSessions(userID uuid.UUID)
 	CancelSession(sessionID string)
+}
+
+// =================================================================
+type ChatRepo interface {
+	Read(userID uuid.UUID) (*chat.Chat, error)
+	Create(chat *chat.Chat)
+	Update(chat *chat.Chat)
 }

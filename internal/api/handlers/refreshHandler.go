@@ -10,9 +10,9 @@ import (
 	"github.com/boginskiy/psychologistAI/internal/api"
 
 	adaptersAPI "github.com/boginskiy/psychologistAI/internal/api/adapters"
-	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/msgs"
 
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -111,6 +111,6 @@ func (h *RefreshHandler) Refresher(w http.ResponseWriter, r *http.Request) {
 
 	// Response
 	h.Responder.AddSetCookies(w, oldCookie, cookiePair.Access, cookiePair.Refresh)
-	body := response.NewInfoBody(vars.MessOkLogin, http.StatusOK)
+	body := response.NewInfoBody(msgs.MessOkLogin, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }

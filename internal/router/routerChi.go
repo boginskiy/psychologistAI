@@ -67,5 +67,9 @@ func (c *RouterChi) RegisterWEBRoutes(start string, handlers ...handlers.Registr
 	})
 
 	c.Mux.Mount(start, webMux)
+
+	// Раздача статики
+	c.Mux.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
 	return c.Mux
 }

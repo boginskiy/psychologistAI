@@ -1,9 +1,12 @@
 package adapters
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/pkg/utils"
 )
 
@@ -31,20 +34,19 @@ func ToLoginUserFromFormRequest(r *http.Request) (*dto.LoginUser, error) {
 	}, nil
 }
 
-func ToMapRegistrTemplate(email string, liveTimeToken int) map[string]any {
-	return map[string]any{
-		"Email":         email,
-		"LiveTimeToken": liveTimeToken,
-	}
-}
+func ToInfoUserFromRequest(r *http.Request) (*dto.InfoUser, error) {
+	infoUser, isUser := request.GetInfoUserFromContext(r.Context())
 
-func ToMapStartTemplate(isUser bool) map[string]any {
-	statusAuth := "LOG IN"
-	if isUser {
-		statusAuth = "LOG OUT"
+	if err := r.ParseForm(); err != nil {
+		return nil, fmt.Errorf("error info user from request: %w", err)
 	}
 
-	return map[string]any{
-		"StatusAuth": statusAuth,
+	msg := strings.TrimSpace(r.PostFormValue("message"))
+
+	if !isUser {
+		return &dto.InfoUser{Message: msg}, nil
 	}
+
+	infoUser.Message = msg
+	return infoUser, nil
 }

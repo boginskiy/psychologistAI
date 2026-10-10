@@ -6,10 +6,10 @@ import "github.com/google/uuid"
 type TokenUser struct {
 	ID   uuid.UUID
 	Name string
-	Role []string
+	Role string
 }
 
-func NewTokenUser(id uuid.UUID, name string, role []string) *TokenUser {
+func NewTokenUser(id uuid.UUID, name string, role string) *TokenUser {
 	return &TokenUser{
 		ID:   id,
 		Name: name,

@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
+	"github.com/boginskiy/psychologistAI/internal/ai"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	apiHandlers "github.com/boginskiy/psychologistAI/internal/api/handlers"
 	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/repository/chatrepo"
 	"github.com/boginskiy/psychologistAI/internal/repository/userrepo"
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
@@ -32,6 +34,8 @@ type App struct {
 	Cooker    cooker.Cooker
 	Server    server.Server
 	Router    router.Router
+
+	AIClient ai.AIClient
 
 	GeoChecker *security.GeoChecker
 }
@@ -61,6 +65,7 @@ func (a *App) initModules(ctx context.Context) error {
 		a.initRouter,
 		a.initCooker,
 		a.initGeoChecker,
+		a.initAIClient,
 		a.initHandlers,
 		a.initServer,
 	}
@@ -81,6 +86,11 @@ func (a *App) initRequester(ctx context.Context) error {
 
 func (a *App) initResponder(ctx context.Context) error {
 	a.Responder = response.NewResponse()
+	return nil
+}
+
+func (a *App) initAIClient(ctx context.Context) error {
+	a.AIClient = ai.NewAIManager(ctx)
 	return nil
 }
 
@@ -128,10 +138,12 @@ func (a *App) initHandlers(ctx context.Context) error {
 	// Repo
 	userRepo := userrepo.NewUserRepo()
 	sessionRepo := userrepo.NewSessionRepo()
+	chatRepo := chatrepo.NewChatRepo()
 
 	// Services
 	authService := service.NewAuthServ(ctx, validater, postman, jwtManager, a.GeoChecker, userRepo, sessionRepo)
 	userService := service.NewUserServ(ctx, validater, postman, userRepo, jwtManager)
+	chatService := service.NewChatServ(ctx, a.AIClient, chatRepo)
 
 	// API Handlers v1
 	authAPIHandler := apiHandlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
@@ -144,7 +156,7 @@ func (a *App) initHandlers(ctx context.Context) error {
 	// WEB Handlers
 	userHandler := webHandlers.NewUserHandler("/user", userService)
 	authWEBHandler := webHandlers.NewAuthHandler(requester, a.Responder, authService, a.Cooker)
-	homeWEBHandler := webHandlers.NewHomeHandler(authService)
+	homeWEBHandler := webHandlers.NewHomeHandler(authService, chatService)
 
 	a.Router.RegisterWEBRoutes("/", homeWEBHandler, authWEBHandler, userHandler)
 

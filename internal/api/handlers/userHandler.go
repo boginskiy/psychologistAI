@@ -8,9 +8,9 @@ import (
 	"github.com/boginskiy/psychologistAI/cmd/config"
 	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/adapters"
-	"github.com/boginskiy/psychologistAI/internal/api/vars"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/msgs"
 
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/service"
@@ -87,7 +87,7 @@ func (h *UserHandler) Verifier(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body.InfoUpdate(vars.MessOkVerification, http.StatusOK)
+	body.InfoUpdate(msgs.MessOkVerification, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
 
@@ -122,7 +122,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := vars.FuncNeedRegistration(userDomen.Email, config.LIVE_TIME_VARIFICATION_TOKEN)
+	msg := msgs.FuncNeedRegistration(userDomen.Email, config.LIVE_TIME_VARIFICATION_TOKEN)
 	body.InfoUpdate(msg, http.StatusOK)
 	h.Responder.SendResponse(w, body)
 }
