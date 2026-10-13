@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"log"
 	"net/http"
 	"text/template"
@@ -23,6 +22,7 @@ type AuthHandler struct {
 	Responder   api.Responder
 	Cooker      cooker.Cooker
 	AuthService service.AuthService
+	Catcher     errs.Catcher
 }
 
 func NewAuthHandler(requester api.Requester, responder api.Responder, authService service.AuthService, cooker cooker.Cooker) *AuthHandler {
@@ -31,6 +31,7 @@ func NewAuthHandler(requester api.Requester, responder api.Responder, authServic
 		Responder:   responder,
 		AuthService: authService,
 		Cooker:      cooker,
+		Catcher:     errs.NewErrService(responder),
 	}
 }
 
@@ -67,36 +68,13 @@ func (h *AuthHandler) Loginer(w http.ResponseWriter, r *http.Request) {
 	loginUser = adaptersApi.UpdateLoginUserFromRequest(loginUser, h.Requester, r)
 	// Service
 	tokenPair, err := h.AuthService.Login(r.Context(), loginUser)
-
-	// Errors
+	// Catch error
 	if err != nil {
-		log.Printf("error: %v\n", err) // + logger
-
-		switch {
-		// Credentials
-		case errors.Is(err, errs.ErrInvalidCredentials):
-			renders.RenderError(w, "401", http.StatusUnauthorized, nil)
-
-		// Verification
-		case errors.Is(err, errs.ErrVerification):
-			renders.RenderError(w, "403", http.StatusForbidden, nil)
-		case errors.Is(err, errs.ErrAttemptsVerification):
-			renders.RenderError(w, "429", http.StatusTooManyRequests, nil)
-
-		// Server
-		case errors.Is(err, errs.ErrServer):
-			renders.RenderError(w, "500", http.StatusInternalServerError, nil)
-
-		default:
-			renders.RenderError(w, "400", http.StatusBadRequest, nil)
-		}
-
+		h.Catcher.CatchWebErr(w, err)
 		return
 	}
 
-	// Cookies
-
-	// Create cookie with tokens
+	// Cookies. Create cookie with tokens
 	cookiePair, err := adapters.FromTokenPair(h.Cooker, tokenPair)
 	if err != nil {
 		log.Printf("error: %v\n", err) // + logger

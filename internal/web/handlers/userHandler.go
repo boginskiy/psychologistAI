@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 type UserHandler struct {
 	basepath    string
 	UserService service.UserService
+	Catcher     errs.Catcher
 }
 
 func NewUserHandler(
@@ -28,6 +28,7 @@ func NewUserHandler(
 	return &UserHandler{
 		basepath:    bpath,
 		UserService: userService,
+		Catcher:     errs.NewErrService(),
 	}
 }
 
@@ -88,24 +89,9 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Service
 	userDomen, err := h.UserService.Create(r.Context(), createUser)
-
-	// Errors
+	// Catch error
 	if err != nil {
-		// + logger
-		log.Printf("user service error: %v", err)
-
-		switch {
-		// Credentials
-		case errors.Is(err, errs.ErrInvalidCredentials):
-			renders.RenderError(w, "401", http.StatusUnauthorized, nil)
-
-		// Server
-		case errors.Is(err, errs.ErrServer):
-			renders.RenderError(w, "500", http.StatusInternalServerError, nil)
-
-		default:
-			renders.RenderError(w, "400", http.StatusBadRequest, nil)
-		}
+		h.Catcher.CatchWebErr(w, err)
 		return
 	}
 

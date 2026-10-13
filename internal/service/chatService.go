@@ -2,19 +2,18 @@ package service
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
 	"github.com/boginskiy/psychologistAI/internal/ai"
 	"github.com/boginskiy/psychologistAI/internal/domain/chat"
 	"github.com/boginskiy/psychologistAI/internal/errs"
 	"github.com/boginskiy/psychologistAI/internal/repository"
+	"github.com/google/uuid"
 )
 
 const (
-	RoleUser      = "user"
-	RoleAssistant = "assistant"
+	AIConsumer = "user"
+	AIProducer = "assistant"
 )
 
 type ChatServ struct {
@@ -30,18 +29,23 @@ func NewChatServ(ctx context.Context, aiClient ai.AIClient, chatRepo repository.
 }
 
 func (s *ChatServ) GetOrCreate(ctx context.Context, infoUser *dto.InfoUser) (*chat.Chat, error) {
-	// Пользователь не зарегистрирован. Возвращаем инициализированный пустой чат
-	// Истории у незарегистрированного пользователя нет.
+	// Это костылек мотылек
 	if infoUser == nil {
 		return &chat.Chat{}, nil
 	}
 
-	userChat, err := s.ChatRepo.Read(infoUser.UserID)
+	// GuestChat
+	if infoUser.UserID == uuid.Nil {
+		guestChat := chat.NewChat(infoUser)
+		return guestChat, nil
+	}
 
+	// UserChat
+	userChat, err := s.ChatRepo.Read(infoUser.UserID)
 	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, errs.ErrReadChat
-		}
+		// if !errors.Is(err, sql.ErrNoRows) {
+		// 	return nil, errs.ErrReadChat
+		// }
 		userChat = chat.NewChat(infoUser)
 	}
 	return userChat, nil
@@ -55,30 +59,27 @@ func (s *ChatServ) Send(ctx context.Context, infoUser *dto.InfoUser) (*chat.Chat
 		cnt++
 	}
 
-	// TODO
-	// Остановка тут! Ошибка! infoUser у нас есть nil, а есть только с сообщением.
-	// Определиться бы не помешало.
-
+	// User Chat
 	userChat, err := s.GetOrCreate(ctx, infoUser)
 	if err != nil {
 		return nil, err
 	}
 
 	// User Message
-	userMessage := chat.NewMessage(userChat.ID, RoleUser, infoUser.Message)
+	userMessage := chat.NewMessage(userChat.ID, AIConsumer, infoUser.Message)
+	userChat.AddMessage(userMessage)
 
 	// AI Client
 	response, err := s.AIClient.Send(ctx, infoUser.Message)
 	if err != nil {
-		userChat.AddMessage(*userMessage)
 		s.ChatRepo.Update(userChat)
 		return userChat, errs.ErrAIResponse
 	}
 
 	// AI Message
-	aiMessage := chat.NewMessage(userChat.ID, RoleAssistant, response)
+	aiMessage := chat.NewMessage(userChat.ID, AIProducer, response)
 
-	userChat.AddMessage(*userMessage, *aiMessage)
+	userChat.AddMessage(aiMessage)
 	s.ChatRepo.Update(userChat)
 
 	return userChat, nil

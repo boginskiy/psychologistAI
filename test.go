@@ -81,3 +81,60 @@ func formatTime(t *time.Time) string {
 	}
 	return t.Format("15:04")
 }
+
+
+
+
+	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
+
+		body := &response.InfoBody{}
+
+		switch {
+		// Credentials
+		case errors.Is(err, errs.ErrSession):
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		case errors.Is(err, errs.ErrUsingToken), errors.Is(err, errs.ErrLegitimacyUser):
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		case errors.Is(err, errs.ErrTimeLiveSession), errors.Is(err, errs.ErrCompareToken):
+			body.ErrorUpdate(errs.ErrAuth, http.StatusUnauthorized)
+
+		// Server
+		case errors.Is(err, errs.ErrServer), errors.Is(err, errs.ErrUpdateDBAfterRefresh):
+			body.ErrorUpdate(errs.ErrServer, http.StatusInternalServerError)
+
+		default:
+			body = response.NewInfoBodyWithErr(err, http.StatusBadRequest)
+		}
+		h.Responder.SendResponse(w, body)
+		return
+	}
+
+
+		// Errors
+	if err != nil {
+		log.Printf("error: %v\n", err) // + logger
+
+		switch {
+		// Credentials
+		case errors.Is(err, errs.ErrInvalidCredentials):
+			renders.RenderError(w, "401", http.StatusUnauthorized, nil)
+
+		// Verification
+		case errors.Is(err, errs.ErrVerification):
+			renders.RenderError(w, "403", http.StatusForbidden, nil)
+		case errors.Is(err, errs.ErrAttemptsVerification):
+			renders.RenderError(w, "429", http.StatusTooManyRequests, nil)
+
+		// Server
+		case errors.Is(err, errs.ErrServer):
+			renders.RenderError(w, "500", http.StatusInternalServerError, nil)
+
+		default:
+			renders.RenderError(w, "400", http.StatusBadRequest, nil)
+		}
+
+		return
+	}

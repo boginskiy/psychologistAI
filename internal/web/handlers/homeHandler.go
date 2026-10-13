@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"text/template"
@@ -44,12 +43,8 @@ func (h *HomeHandler) Sender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("0000")
-
 	// Service
 	userChat, err := h.ChatService.Send(r.Context(), infoUser)
-
-	fmt.Println("11111")
 
 	// Errors
 	if err != nil {
@@ -69,7 +64,7 @@ func (h *HomeHandler) Sender(w http.ResponseWriter, r *http.Request) {
 			}
 
 			tmpl, err := template.ParseFiles(
-				"templates/partials/message_user.html",
+				"templates/chat/message_user.html",
 			)
 
 			if err != nil {
@@ -92,8 +87,6 @@ func (h *HomeHandler) Sender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("1111")
-
 	// Берём последние два сообщения (user + ai)
 	last := userChat.LastN(2)
 	if len(last) < 2 {
@@ -101,20 +94,16 @@ func (h *HomeHandler) Sender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("22222")
-
 	// Парсим только партиалы — base.html НЕ нужен
 	tmpl, err := template.ParseFiles(
-		"templates/partials/message_user.html",
-		"templates/partials/message_ai.html",
+		"templates/chat/message_user.html",
+		"templates/chat/message_ai.html",
 	)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("3333")
 
 	// 7. Рендерим оба фрагмента в один ответ
 	userMsg := map[string]any{
@@ -143,6 +132,8 @@ func (h *HomeHandler) Starter(w http.ResponseWriter, r *http.Request) {
 	// Получаем пустой чат для незарегистрированного пользователя
 	userChat, err := h.ChatService.GetOrCreate(r.Context(), infoUser)
 	if err != nil {
+		// + logger
+		log.Printf("service error: %v", err)
 		renders.RenderError(w, "500", http.StatusInternalServerError, nil)
 		return
 	}
@@ -174,8 +165,8 @@ func (h *HomeHandler) Starter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"History":    history,
-		"AuthStatus": h.takeAuthStatus(ok),
+		"History": history,
+		"IsLogIn": ok,
 	}
 
 	tmpl.ExecuteTemplate(w, "base", data)

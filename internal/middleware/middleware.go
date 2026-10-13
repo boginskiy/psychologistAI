@@ -93,7 +93,7 @@ func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.H
 			cookie, err := r.Cookie(config.COOKIE_NAME_ACCESS_TOKEN)
 
 			if err != nil {
-				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
+				log.Printf("middleware error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				next.ServeHTTP(w, r)
 				return
@@ -105,7 +105,7 @@ func (m *Middlew) AuthWebMiddleware(authService service.AuthService) func(http.H
 			infoUser, err := authService.Auth(r.Context(), accessTokenReq)
 
 			if err != nil {
-				log.Printf("error: %s:%s\n", errs.ErrAuth, err) // + logger
+				log.Printf("middleware auth error: %s:%s\n", errs.ErrAuth, err) // + logger
 
 				next.ServeHTTP(w, r)
 				return

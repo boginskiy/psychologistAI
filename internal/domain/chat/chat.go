@@ -12,7 +12,7 @@ type Chat struct {
 	ID       uuid.UUID
 	UserID   uuid.UUID // чей это чат
 	Title    string    // название чата (автогенерируется из первого сообщения)
-	Messages []Message
+	Messages []*Message
 
 	CreatedAt     *time.Time
 	UpdatedAt     *time.Time
@@ -30,6 +30,11 @@ func NewChat(infoUser *dto.InfoUser) *Chat {
 	// Current time
 	timeNow := time.Now().UTC()
 
+	// Неавторизованный пользователь
+	if infoUser.UserID == uuid.Nil {
+		infoUser.UserID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	}
+
 	return &Chat{
 		ID:     generators.CreateUUIDv7(),
 		UserID: infoUser.UserID,
@@ -37,7 +42,7 @@ func NewChat(infoUser *dto.InfoUser) *Chat {
 		// TODO. Сделать автогенерацию AI
 		Title: makeTitle(infoUser.Message),
 
-		Messages:  make([]Message, 0, 10),
+		Messages:  make([]*Message, 0, 10),
 		CreatedAt: &timeNow,
 		UpdatedAt: &timeNow,
 		// LastMessageAt:
@@ -56,7 +61,7 @@ func makeTitle(msg string) string {
 	return msg
 }
 
-func (c *Chat) AddMessage(msg ...Message) []Message {
+func (c *Chat) AddMessage(msg ...*Message) []*Message {
 	now := time.Now().UTC()
 
 	c.Messages = append(c.Messages, msg...)
@@ -71,7 +76,7 @@ func (c *Chat) MessageCount() int {
 	return len(c.Messages)
 }
 
-func (c *Chat) LastN(n int) []Message {
+func (c *Chat) LastN(n int) []*Message {
 	if len(c.Messages) <= n {
 		return c.Messages
 	}
