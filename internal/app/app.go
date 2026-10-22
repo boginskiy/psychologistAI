@@ -4,25 +4,38 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/cmd/config"
+	"github.com/boginskiy/psychologistAI/internal/api"
 	"github.com/boginskiy/psychologistAI/internal/api/handlers"
+	"github.com/boginskiy/psychologistAI/internal/api/request"
 	"github.com/boginskiy/psychologistAI/internal/api/response"
 	"github.com/boginskiy/psychologistAI/internal/logger"
-	userrepo "github.com/boginskiy/psychologistAI/internal/repository/userRepo"
+	"github.com/boginskiy/psychologistAI/internal/middleware"
+	"github.com/boginskiy/psychologistAI/internal/repository/userrepo"
 	"github.com/boginskiy/psychologistAI/internal/router"
 	"github.com/boginskiy/psychologistAI/internal/server"
 	"github.com/boginskiy/psychologistAI/internal/service"
-	"github.com/boginskiy/psychologistAI/internal/service/infra"
+
 	"github.com/boginskiy/psychologistAI/pkg/cookie"
+	"github.com/boginskiy/psychologistAI/pkg/emailservice"
 	"github.com/boginskiy/psychologistAI/pkg/jwtservice"
+	"github.com/boginskiy/psychologistAI/pkg/security"
+	"github.com/boginskiy/psychologistAI/pkg/validservice"
 )
+
+const PathCountryDB = "GeoLite2-Country.mmdb"
+const PathASNDB = "GeoLite2-ASN.mmdb"
 
 type App struct {
 	Cfg  config.Config
 	Logg logger.Logger
 
-	Cooker cookie.Cooker
-	Server server.Server
-	Router router.Router
+	Responder api.Responder
+	Requester api.Requester
+	Cooker    cookie.Cooker
+	Server    server.Server
+	Router    router.Router
+
+	GeoChecker *security.GeoChecker
 }
 
 func NewApp(ctx context.Context) (*App, error) {
@@ -36,6 +49,7 @@ func NewApp(ctx context.Context) (*App, error) {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	defer a.GeoChecker.Close()
 	return a.Server.Run(ctx, a.Router.Run())
 }
 
@@ -44,8 +58,11 @@ func (a *App) initModules(ctx context.Context) error {
 		// Последовательность inits имеет значение.
 		a.initConfig,
 		a.initLogger,
+		a.initResponder,
+		a.initRequester,
 		a.initRouter,
 		a.initCooker,
+		a.initGeoChecker,
 		a.initHandlers,
 		a.initServer,
 	}
@@ -56,6 +73,25 @@ func (a *App) initModules(ctx context.Context) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *App) initRequester(ctx context.Context) error {
+	a.Requester = request.NewRequest()
+	return nil
+}
+
+func (a *App) initResponder(ctx context.Context) error {
+	a.Responder = response.NewResponse()
+	return nil
+}
+
+func (a *App) initGeoChecker(ctx context.Context) error {
+	checker, err := security.NewGeoChecker(PathCountryDB, PathASNDB)
+	if err != nil {
+		return err
+	}
+	a.GeoChecker = checker
 	return nil
 }
 
@@ -86,27 +122,32 @@ func (a *App) initCooker(ctx context.Context) error {
 
 func (a *App) initHandlers(ctx context.Context) error {
 	// Infra services
-	validater := infra.NewValidService(ctx)
-	notifier := infra.NewEmailServ(ctx)
-	response := response.NewResponse()
+	validater := validservice.NewValidService(ctx)
+	postman := emailservice.NewEmailService(ctx)
 	jwtManager := jwtservice.NewJWTService()
+	requester := request.NewRequest()
 
 	// Repo
 	userRepo := userrepo.NewUserRepo()
+	sessionRepo := userrepo.NewSessionRepo()
 
 	// Services
-	userService := service.NewUserServ(ctx, validater, notifier, userRepo, jwtManager)
+	authService := service.NewAuthServ(ctx, validater, postman, jwtManager, a.GeoChecker, userRepo, sessionRepo)
+	userService := service.NewUserServ(ctx, validater, postman, userRepo, jwtManager)
 
 	// Handlers
-	userHandler := handlers.NewUserHandler("/user", userService, response, a.Cooker)
+	authHandler := handlers.NewAuthHandler("/auth", authService, a.Responder, requester, a.Cooker)
+	userHandler := handlers.NewUserHandler("/api/v1/user", userService, a.Responder, requester)
 
 	// Router
 	a.Router.RegisterRoutes(userHandler)
+	a.Router.RegisterRoutes(authHandler)
 	return nil
 }
 
 func (a *App) initRouter(ctx context.Context) error {
-	a.Router = router.NewRouterChi(ctx, "/api/v1")
+	middlew := middleware.NewMiddlew(a.Responder, a.Requester)
+	a.Router = router.NewRouterChi(ctx, middlew)
 	return nil
 }
 

@@ -4,19 +4,17 @@ import (
 	"context"
 
 	"github.com/boginskiy/psychologistAI/internal/adapters/dto"
-	models "github.com/boginskiy/psychologistAI/internal/models/users"
+	domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 )
 
-type Validater interface {
-	CheckNotEmptyStrField(name, field string) error
-}
-
-type Notifier interface {
-	Send(email, token string)
+type AuthService interface {
+	Refresh(context.Context, *dto.TokenReq) (*dto.TokenPair, error)
+	Auth(context.Context, *dto.TokenReq) (*dto.InfoUser, error)
+	Login(context.Context, *dto.LoginUser) (*dto.TokenPair, error)
+	Logout(ctx context.Context) error
 }
 
 type UserService interface {
-	Create(ctx context.Context, user *dto.CreateUser) (*models.User, error)
-	Verification(ctx context.Context, token string) (*models.User, error)
-	Login(ctx context.Context, loginUser *dto.LoginUser) (*models.Token, error)
+	Verification(ctx context.Context, token string) (*domain.User, error)
+	Create(context.Context, *dto.CreateUser) (*domain.User, error)
 }

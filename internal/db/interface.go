@@ -1,7 +1,8 @@
 package db
 
-import models "github.com/boginskiy/psychologistAI/internal/models/users"
+import domain "github.com/boginskiy/psychologistAI/internal/domain/user"
 
 type DataBase interface {
-	GetUserTable() map[string]*models.User
+	GetUserTable() map[string]*domain.User
+	GetSessionTable() map[string]*domain.Session
 }

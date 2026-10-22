@@ -7,6 +7,7 @@ var (
 	MessExceedingVerificationAttempts string = "number of attempts to verify the account has been exceeded"
 	MessOkVerification                string = "verification successful"
 	MessOkLogin                       string = "successful login"
+	MessOkLogout                      string = "successful logout"
 )
 
 var FuncNeedRegistration = func(email string, minutes int) string {

@@ -62,30 +62,22 @@ func (c *Cookies) CreateCookie(configName, value string) (*http.Cookie, error) {
 	return nil, ErrConfigCookie
 }
 
+func (c *Cookies) ClearCookie(nameCookie string) (*http.Cookie, error) {
+	if config, ok := c.MapConfig[nameCookie]; ok {
+		return &http.Cookie{
+			Name:     config.Name,
+			SameSite: http.SameSiteLaxMode,
+			Path:     config.Path,
+			HttpOnly: config.HttpOnly,
+			Secure:   config.Secure,
+			Value:    "",              // Пустое значение
+			Expires:  time.Unix(0, 1), // Эпоха Unix + 1 секунда (страховка для старых браузеров)
+			MaxAge:   -1,              // Удалить немедленно
+		}, nil
+	}
+	return nil, ErrConfigCookie
+}
+
 func (c *Cookies) transferIntToTime(tm int) time.Time {
 	return time.Now().Add(time.Duration(tm) * time.Minute)
 }
-
-// func (c *Cookie) Set(w http.ResponseWriter) {
-// 	http.SetCookie(w, c.Cookie)
-// }
-
-// func (c *Cookie) Read(r *http.Request) (*http.Cookie, error) {
-// 	cookie, err := r.Cookie(c.Name)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return cookie, nil
-// }
-
-// func (c *Cookie) ReadAll(r *http.Request) []*http.Cookie {
-// 	return r.Cookies()
-// }
-
-// func (c *Cookie) Delete(w http.ResponseWriter) {
-// 	// Чтобы удалить куку, нужно установить ее заново со значением MaxAge=-1
-// 	// или Expires в прошлом времени.
-// 	c.MaxAge = -1
-// 	c.Expires = time.Unix(0, 0)
-// 	http.SetCookie(w, c.Cookie)
-// }
